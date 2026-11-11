@@ -2,18 +2,23 @@
 
 import base64
 import binascii
+import json
+import logging
 import os
+import time
+from collections.abc import AsyncIterator
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from google.genai import types
+from pydantic import ValidationError
 
 load_dotenv()  # reads backend/.env
 
 from . import prompts  # noqa: E402
-from .llm import LLMError, generate_json, model_names  # noqa: E402
+from .llm import LLMError, generate_json, model_names, stream_json_text  # noqa: E402
 from .schemas import (  # noqa: E402
     AudioIntentLLMOutput,
     IntentLLMOutput,
@@ -24,6 +29,8 @@ from .schemas import (  # noqa: E402
     SpeakIntentResponse,
     SpeakRewriteRequest,
     SpeakRewriteResponse,
+    WritingComposeRequest,
+    WritingComposeResponse,
 )
 
 app = FastAPI(title="SWAITHON backend")
@@ -39,6 +46,19 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )
+
+
+log = logging.getLogger("uvicorn.error")
+
+
+@app.middleware("http")
+async def log_duration(request: Request, call_next):
+    started = time.perf_counter()
+    response = await call_next(request)
+    # Streaming endpoints log their own finish time (here the response has only just started).
+    if request.method == "POST" and not request.url.path.endswith("/stream"):
+        log.info("%s %s -> %s in %.1fs", request.method, request.url.path, response.status_code, time.perf_counter() - started)
+    return response
 
 
 @app.exception_handler(LLMError)
@@ -86,3 +106,41 @@ async def speak_rewrite(body: SpeakRewriteRequest) -> SpeakRewriteResponse:
 @app.post("/listen/explain", response_model=ListenExplainResponse)
 async def listen_explain(body: ListenExplainRequest) -> ListenExplainResponse:
     return await generate_json(prompts.LISTEN_SYSTEM, body.koreanText, ListenExplainResponse)
+
+
+@app.post("/writing/compose", response_model=WritingComposeResponse)
+async def writing_compose(body: WritingComposeRequest) -> WritingComposeResponse:
+    user_message = prompts.writing_user_message(body.situation, body.recipient.strip(), body.intent.strip())
+    return await generate_json(prompts.WRITING_SYSTEM, user_message, WritingComposeResponse)
+
+
+@app.post("/writing/compose/stream")
+async def writing_compose_stream(body: WritingComposeRequest) -> StreamingResponse:
+    """Same as /writing/compose, but streams the answer as it is written.
+
+    Sends newline-delimited JSON events:
+      {"type": "delta", "text": "..."}   a piece of the raw JSON answer
+      {"type": "done", "result": {...}}  the validated WritingComposeResponse
+      {"type": "error", "detail": "..."} something went wrong
+    """
+    user_message = prompts.writing_user_message(body.situation, body.recipient.strip(), body.intent.strip())
+
+    def event(payload: dict) -> str:
+        return json.dumps(payload, ensure_ascii=False) + "\n"
+
+    async def events() -> AsyncIterator[str]:
+        started = time.perf_counter()
+        pieces: list[str] = []
+        try:
+            async for piece in stream_json_text(prompts.WRITING_SYSTEM, user_message, WritingComposeResponse):
+                pieces.append(piece)
+                yield event({"type": "delta", "text": piece})
+            result = WritingComposeResponse.model_validate_json("".join(pieces))
+            yield event({"type": "done", "result": result.model_dump()})
+            log.info("POST /writing/compose/stream finished in %.1fs", time.perf_counter() - started)
+        except LLMError as err:
+            yield event({"type": "error", "detail": str(err)})
+        except ValidationError:
+            yield event({"type": "error", "detail": "The AI returned an answer in an unexpected format. Try again."})
+
+    return StreamingResponse(events(), media_type="application/x-ndjson")

@@ -1,11 +1,12 @@
 import ListenMain from './components/listenMain';
 import SpeakMain from './components/speakMain';
 import LearnMain from './components/learnMain';
+import WritingMain from './components/writingMain';
 import { useState } from 'react';
 import { useFeedbackBook } from './store/feedbackBook';
 
 function App() {
-  const [activeMenu, setActiveMenu] = useState<'speak' | 'listen' | 'learn'>('listen');
+  const [activeMenu, setActiveMenu] = useState<'speak' | 'listen' | 'learn' | 'writing'>('listen');
   const feedbackBook = useFeedbackBook();
 
   return (
@@ -17,7 +18,7 @@ function App() {
           onAnswer={() => setActiveMenu('listen')}
           onSave={feedbackBook.addEntry}
         />
-      ) : (
+      ) : activeMenu === 'learn' ? (
         <LearnMain
           entries={feedbackBook.entries}
           isLoading={feedbackBook.isLoading}
@@ -26,7 +27,12 @@ function App() {
           onRemove={(id) => void feedbackBook.removeEntry(id)}
           onUpdateMemo={feedbackBook.updateMemo}
         />
-      )}
+      ) : null}
+      {/* Writing stays mounted while hidden, so a message being written (or already written)
+          is still there after visiting another tab. */}
+      <div hidden={activeMenu !== 'writing'}>
+        <WritingMain />
+      </div>
       <nav className="bottom-navigation" aria-label="Main navigation">
         <button
           className={activeMenu === 'speak' ? 'is-active' : ''}
@@ -53,7 +59,11 @@ function App() {
           <span aria-hidden="true">◆</span>
           LEARN
         </button>
-        <button className="is-disabled" type="button" disabled>
+        <button
+          className={activeMenu === 'writing' ? 'is-active' : ''}
+          type="button"
+          onClick={() => setActiveMenu('writing')}
+        >
           <span aria-hidden="true">▤</span>
           WRITING
         </button>

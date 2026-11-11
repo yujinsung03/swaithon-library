@@ -2,6 +2,8 @@
 
 import logging
 import os
+import time
+from collections.abc import AsyncIterator
 from typing import TypeVar
 
 from google import genai
@@ -62,6 +64,30 @@ def _config(system: str, schema: type[BaseModel], thinking: types.ThinkingConfig
     )
 
 
+def _is_thinking_rejection(err: errors.APIError, thinking: types.ThinkingConfig | None) -> bool:
+    # Some models don't accept a thinking level; those calls are retried once without it.
+    return err.code == 400 and thinking is not None and "thinking" in str(err).lower()
+
+
+def _should_try_next_model(err: errors.APIError, model: str) -> bool:
+    """True when another model might succeed; raises LLMError when no model will."""
+    if err.code in (401, 403):
+        raise LLMError("The Gemini API key was rejected. Check GEMINI_API_KEY in backend/.env.", 500) from err
+    if err.code in (429, 404) or err.code >= 500:
+        # Rate limit, model not on this key, or a temporary Google error.
+        log.warning("Gemini model %s unavailable (%s), trying next model", model, err.code)
+        return True
+    raise LLMError(f"The AI request failed ({err.code}). Try again.", 502) from err
+
+
+def _all_models_failed(last_error: errors.APIError | None) -> LLMError:
+    if last_error is not None and last_error.code == 429:
+        return LLMError("The free AI quota is used up for now. Try again later, or add another Gemini API key.", 429)
+    if last_error is not None and last_error.code >= 500:
+        return LLMError("The AI service is busy right now. Try again in a moment.", 503)
+    return LLMError("No Gemini model is available. Check GEMINI_MODELS in backend/.env.", 502)
+
+
 async def _call_model(model: str, system: str, user: Contents, schema: type[T]) -> types.GenerateContentResponse:
     client = _get_client()
     thinking = _thinking_config()
@@ -70,8 +96,7 @@ async def _call_model(model: str, system: str, user: Contents, schema: type[T]) 
             model=model, contents=user, config=_config(system, schema, thinking)
         )
     except errors.ClientError as err:
-        # Some models don't accept a thinking level; retry once without it.
-        if err.code == 400 and thinking is not None and "thinking" in str(err).lower():
+        if _is_thinking_rejection(err, thinking):
             return await client.aio.models.generate_content(
                 model=model, contents=user, config=_config(system, schema, None)
             )
@@ -84,25 +109,18 @@ async def generate_json(system: str, user: Contents, schema: type[T]) -> T:
     response: types.GenerateContentResponse | None = None
 
     for model in model_names():
+        started = time.perf_counter()
         try:
             response = await _call_model(model, system, user, schema)
+            log.info("Gemini %s answered %s in %.1fs", model, schema.__name__, time.perf_counter() - started)
             break
         except errors.APIError as err:
             last_error = err
-            if err.code in (401, 403):
-                raise LLMError("The Gemini API key was rejected. Check GEMINI_API_KEY in backend/.env.", 500) from err
-            if err.code in (429, 404):
-                # Rate limit or model not available on this key: try the next model.
-                log.warning("Gemini model %s unavailable (%s), trying next model", model, err.code)
+            if _should_try_next_model(err, model):
                 continue
-            raise LLMError(f"The AI request failed ({err.code}). Try again.", 502) from err
 
     if response is None:
-        if last_error is not None and last_error.code == 429:
-            raise LLMError(
-                "The free AI quota is used up for now. Try again later, or add another Gemini API key.", 429
-            ) from last_error
-        raise LLMError("No Gemini model is available. Check GEMINI_MODELS in backend/.env.", 502) from last_error
+        raise _all_models_failed(last_error) from last_error
 
     parsed = response.parsed
     if isinstance(parsed, schema):
@@ -114,3 +132,52 @@ async def generate_json(system: str, user: Contents, schema: type[T]) -> T:
         except ValueError as err:
             raise LLMError("The AI returned an answer in an unexpected format. Try again.") from err
     raise LLMError("The AI returned an empty answer. Try again.")
+
+
+async def _open_stream(model: str, system: str, user: Contents, schema: type[BaseModel]) -> AsyncIterator[types.GenerateContentResponse]:
+    client = _get_client()
+    thinking = _thinking_config()
+    try:
+        return await client.aio.models.generate_content_stream(
+            model=model, contents=user, config=_config(system, schema, thinking)
+        )
+    except errors.ClientError as err:
+        if _is_thinking_rejection(err, thinking):
+            return await client.aio.models.generate_content_stream(
+                model=model, contents=user, config=_config(system, schema, None)
+            )
+        raise
+
+
+async def stream_json_text(system: str, user: Contents, schema: type[BaseModel]) -> AsyncIterator[str]:
+    """Yield the model's JSON answer piece by piece as it is written.
+
+    Falls back to the next model if one fails before its first piece arrives.
+    The caller joins the pieces and validates them against `schema` at the end.
+    """
+    last_error: errors.APIError | None = None
+
+    for model in model_names():
+        started = time.perf_counter()
+        try:
+            stream = await _open_stream(model, system, user, schema)
+            first = await anext(stream, None)  # errors such as 429 surface here
+        except errors.APIError as err:
+            last_error = err
+            if _should_try_next_model(err, model):
+                continue
+            raise  # unreachable: _should_try_next_model raises otherwise
+
+        log.info("Gemini %s started %s after %.1fs", model, schema.__name__, time.perf_counter() - started)
+        if first is not None and first.text:
+            yield first.text
+        try:
+            async for chunk in stream:
+                if chunk.text:
+                    yield chunk.text
+        except errors.APIError as err:
+            raise LLMError("The AI stopped in the middle of the answer. Try again.", 502) from err
+        log.info("Gemini %s finished %s in %.1fs", model, schema.__name__, time.perf_counter() - started)
+        return
+
+    raise _all_models_failed(last_error) from last_error

@@ -75,6 +75,31 @@ class ListenExplainResponse(BaseModel):
     expressions: list[ListenExpression]
 
 
+# ---- /writing/compose ----
+
+Situation = Literal["professor_email", "coworker_message", "restaurant_inquiry", "decline_reschedule", "other"]
+
+
+class WritingComposeRequest(BaseModel):
+    situation: Situation
+    recipient: str = Field(default="", max_length=100)
+    intent: str = Field(min_length=1, max_length=1000)
+
+
+class WritingNote(BaseModel):
+    phrase: str
+    explanation: str
+
+
+class WritingComposeResponse(BaseModel):
+    # Empty unless the message is an email.
+    subject: str
+    message: str
+    tone: str
+    englishMeaning: str
+    notes: list[WritingNote]
+
+
 # ---- What we ask Gemini to return (kept separate from the API shapes) ----
 
 class IntentLLMOutput(BaseModel):

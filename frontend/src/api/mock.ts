@@ -11,6 +11,8 @@ import type {
   SpeakIntentResponse,
   SpeakRewriteRequest,
   SpeakRewriteResponse,
+  WritingComposeRequest,
+  WritingComposeResponse,
 } from './types';
 
 type ToneKey = `${Relationship}-${Closeness}`;
@@ -167,6 +169,32 @@ export async function explainListening({ koreanText }: ListenExplainRequest): Pr
           'Literally "cool", but about hot soup it means refreshing and soothing, the kind of broth that relieves fatigue or a hangover.',
         isCultural: true,
       },
+    ],
+  };
+}
+
+export async function composeWriting({ situation }: WritingComposeRequest): Promise<WritingComposeResponse> {
+  await wait(900);
+  if (situation !== 'professor_email') {
+    return {
+      subject: '',
+      message: '(Demo mode) The message appears once the backend is connected.',
+      tone: 'Polite (해요체)',
+      englishMeaning: 'Demo mode: connect the backend to write real messages.',
+      notes: [],
+    };
+  }
+  return {
+    subject: '[과목명] 과제 제출 기한 문의드립니다 ([이름])',
+    message:
+      '안녕하세요, 교수님.\n[과목명] 수강생 [이름]입니다.\n\n다름이 아니라, 몸이 좋지 않아 이번 과제를 기한 내에 제출하기 어려울 것 같아 연락드렸습니다.\n혹시 제출 기한을 조금 연장해 주실 수 있을지 여쭙고 싶습니다.\n\n바쁘신 와중에 읽어 주셔서 감사합니다.\n[이름] 올림',
+    tone: 'Formal (합쇼체)',
+    englishMeaning:
+      "Hello, Professor. I'm [name], a student in [course]. I'm writing because I'm not feeling well and may not be able to submit this assignment on time. I'd like to ask if you could extend the deadline a little. Thank you for reading this despite your busy schedule. Sincerely, [name]",
+    notes: [
+      { phrase: '다름이 아니라', explanation: 'A polite way to start the main point, like "The reason I am writing is...".' },
+      { phrase: '여쭙고 싶습니다', explanation: 'A humble form of "I would like to ask", used with professors and elders.' },
+      { phrase: '[이름] 올림', explanation: 'A respectful email closing, like "Sincerely".' },
     ],
   };
 }

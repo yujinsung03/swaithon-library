@@ -1845,3 +1845,41 @@ padding-left: 12px;
 .speak-lang select { padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; color: #0f172a; font: inherit; font-size: 13px; }
 .microphone-button:disabled, .listen-microphone:disabled { opacity: .45; cursor: not-allowed; }
 .listen-text-form { margin: 8px auto 0; }
+
+/* ---------- Writing ---------- */
+.writing-page { width: min(430px, 100%); min-height: calc(100vh - 82px); margin: 0 auto; padding: 24px 20px 110px; color: #0f172a; }
+.writing-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 22px; }
+.writing-header p { margin: 8px 0 0; color: #94a3b8; font-size: 13px; line-height: 1.5; }
+.writing-brand { display: flex; align-items: center; gap: 8px; color: #64748b; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.writing-status-dot { width: 9px; height: 9px; border-radius: 50%; background: #7c3aed; box-shadow: 0 0 0 3px #ede9fe; }
+.writing-header .result-back-button { flex: none; }
+.writing-content { display: grid; gap: 18px; }
+.writing-situations { margin: 0; padding: 0; border: 0; display: grid; gap: 10px; }
+.writing-situations legend, .writing-field > span { margin-bottom: 8px; padding: 0; color: #94a3b8; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.writing-situation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.writing-situation { display: grid; gap: 3px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; color: #334155; text-align: left; cursor: pointer; }
+.writing-situation strong { font-size: 13px; }
+.writing-situation span { color: #94a3b8; font-size: 12px; }
+.writing-situation.is-selected { border-color: #7c3aed; background: #7c3aed; color: #fff; box-shadow: 0 8px 18px rgb(124 58 237 / 25%); }
+.writing-situation.is-selected span { color: #ede9fe; }
+.writing-situation:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.writing-field { display: grid; }
+.writing-field input, .writing-field textarea { width: 100%; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #f8fafc; color: #0f172a; font: inherit; font-size: 14px; line-height: 1.55; resize: vertical; }
+.writing-field input:focus, .writing-field textarea:focus { outline: 2px solid #c4b5fd; border-color: #7c3aed; background: #fff; }
+.writing-submit, .writing-new-button { width: 100%; min-height: 52px; border: 0; border-radius: 16px; background: #7c3aed; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 10px 20px rgb(124 58 237 / 22%); }
+.writing-submit:disabled { background: #cbd5e1; box-shadow: none; cursor: not-allowed; }
+.writing-new-button { background: #f5f3ff; color: #6d28d9; box-shadow: none; border: 1px solid #ddd6fe; }
+.writing-block { display: grid; gap: 8px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 18px; background: #fff; }
+.writing-message-block { background: #faf9ff; border-color: #ddd6fe; }
+.writing-block-heading { display: flex; align-items: center; justify-content: space-between; color: #94a3b8; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.writing-block-heading button { padding: 5px 10px; border: 1px solid #ddd6fe; border-radius: 999px; background: #fff; color: #6d28d9; font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; cursor: pointer; }
+.writing-subject { margin: 0; font-size: 15px; font-weight: 700; }
+.writing-message { margin: 0; font-size: 15px; line-height: 1.75; white-space: pre-wrap; word-break: keep-all; }
+.writing-english { margin: 0; color: #475569; font-size: 13px; line-height: 1.6; }
+.writing-hint { margin: 0; padding: 8px 10px; border-radius: 10px; background: #fffbeb; color: #92400e; font-size: 12px; }
+.writing-caret { display: inline-block; width: 2px; height: 1.1em; margin-left: 2px; vertical-align: text-bottom; background: #7c3aed; animation: writing-blink 1s steps(2, start) infinite; }
+.writing-status-dot.is-live { animation: writing-pulse 1.2s ease-in-out infinite; }
+.writing-hint-muted { margin: 0; color: #94a3b8; font-size: 12px; text-align: center; }
+@keyframes writing-blink { to { visibility: hidden; } }
+@keyframes writing-pulse { 50% { box-shadow: 0 0 0 6px #ede9fe; } }
+@media (prefers-reduced-motion: reduce) { .writing-caret, .writing-status-dot.is-live { animation: none; } }

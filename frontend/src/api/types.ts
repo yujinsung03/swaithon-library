@@ -57,3 +57,31 @@ export interface ListenExplainResponse {
   english: string;
   expressions: ListenExpression[];
 }
+
+/** POST /writing/compose — a ready-to-send Korean message for a situation */
+export type WritingSituation =
+  | 'professor_email'
+  | 'coworker_message'
+  | 'restaurant_inquiry'
+  | 'decline_reschedule'
+  | 'other';
+
+export interface WritingComposeRequest {
+  situation: WritingSituation;
+  recipient: string;
+  intent: string;
+}
+
+export interface WritingNote {
+  phrase: string;
+  explanation: string;
+}
+
+export interface WritingComposeResponse {
+  /** Empty unless the message is an email. */
+  subject: string;
+  message: string;
+  tone: string;
+  englishMeaning: string;
+  notes: WritingNote[];
+}
