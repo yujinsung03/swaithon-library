@@ -1,70 +1,147 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import SpeakCheck from './speakCheck';
 import SpeakLoading from './speakLoading';
 import SpeakConfirm from './speakConfirm';
-import {
-  mockTranslate,
-  type Closeness,
-  type Relationship,
-  type TranslationResult,
-} from '../data/mockVoiceData';
+import { checkSpeakIntent, rewriteSpeech } from '../api/client';
+import { demoSentences } from '../api/mock';
+import type {
+  Closeness,
+  Relationship,
+  SpeakIntentResponse,
+  SpeakRewriteResponse,
+} from '../api/types';
+import type { NewFeedbackEntry } from '../store/feedbackBook';
 
-function SpeakMain({
-  onAnswer,
-}: {
+export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+
+type Page = 'input' | 'loading-intent' | 'check' | 'loading-rewrite' | 'result';
+
+const relationshipLabels: Record<Relationship, string> = {
+  friend_younger: 'Friend / Younger',
+  older: 'Older',
+};
+
+const closenessLabels: Record<Closeness, string> = {
+  stranger: 'Stranger',
+  a_little: 'A little',
+  close: 'Close',
+};
+
+interface SpeakMainProps {
   onAnswer: () => void;
-}) {
-  const [page, setPage] = useState<'recording' | 'confirmation' | 'loading' | 'context'>('recording');
+  onSave: (entry: NewFeedbackEntry) => Promise<boolean>;
+}
+
+function SpeakMain({ onAnswer, onSave }: SpeakMainProps) {
+  const [page, setPage] = useState<Page>('input');
   const [relationship, setRelationship] = useState<Relationship>('friend_younger');
   const [closeness, setCloseness] = useState<Closeness>('close');
   const [isRecording, setIsRecording] = useState(false);
-  const [result, setResult] = useState<TranslationResult | null>(null);
+  const [text, setText] = useState('');
+  const [demoIndex, setDemoIndex] = useState(0);
+  const [intent, setIntent] = useState<SpeakIntentResponse | null>(null);
+  const [rewrite, setRewrite] = useState<SpeakRewriteResponse | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [error, setError] = useState<string | null>(null);
 
-  const toggleRecording = () => {
-    const next = !isRecording;
-    setIsRecording(next);
-    if (!next) {
-      void mockTranslate({
-        sourceText: '피자를 먹고 싶어요',
-        relationship,
-        closeness,
-      }).then(setResult);
-      setPage('loading');
+  const requestIntent = async (sourceText: string) => {
+    const trimmed = sourceText.trim();
+    if (!trimmed) return;
+    setError(null);
+    setPage('loading-intent');
+    try {
+      setIntent(await checkSpeakIntent({ sourceText: trimmed }));
+      setPage('check');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setPage('input');
     }
   };
 
-  const currentResult = result ?? {
-    originalText: '피자를 먹고 싶어요',
-    translatedText: 'I want to eat pizza!',
-    tone: 'Friendly casual',
-    words: [],
+  const requestRewrite = async () => {
+    if (!intent) return;
+    setError(null);
+    setSaveState('idle');
+    setPage('loading-rewrite');
+    try {
+      setRewrite(await rewriteSpeech({ ...intent, relationship, closeness }));
+      setPage('result');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setPage('check');
+    }
   };
 
-  if (page === 'confirmation') {
+  // No speech recognition yet: stopping the mic "hears" one of the demo sentences.
+  const toggleRecording = () => {
+    if (!isRecording) {
+      setIsRecording(true);
+      return;
+    }
+    setIsRecording(false);
+    const heard = demoSentences[demoIndex % demoSentences.length];
+    setDemoIndex((index) => index + 1);
+    setText(heard);
+    void requestIntent(heard);
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void requestIntent(text);
+  };
+
+  const saveToFeedbackBook = async () => {
+    if (!intent || !rewrite || saveState === 'saving' || saveState === 'saved') return;
+    setSaveState('saving');
+    const ok = await onSave({
+      kind: 'speak',
+      sourceText: intent.sourceText,
+      intentEnglish: intent.intentEnglish,
+      korean: rewrite.korean,
+      tone: rewrite.tone,
+      corrections: rewrite.corrections,
+    });
+    setSaveState(ok ? 'saved' : 'error');
+  };
+
+  const backToInput = () => {
+    setIsRecording(false);
+    setPage('input');
+  };
+
+  if (page === 'loading-intent') {
+    return <SpeakLoading title="Understanding you..." subtitle="Figuring out what you want to say" />;
+  }
+
+  if (page === 'loading-rewrite') {
+    return <SpeakLoading title="Finding natural Korean..." subtitle="Matching the tone to who you are talking to" />;
+  }
+
+  if (page === 'check' && intent) {
     return (
       <SpeakCheck
-        onNo={() => setPage('recording')}
-        onYes={() => setPage('context')}
-        result={currentResult}
+        intent={intent}
+        error={error}
+        onNo={backToInput}
+        onYes={() => void requestRewrite()}
       />
     );
   }
 
-  if (page === 'context') {
+  if (page === 'result' && rewrite) {
     return (
       <SpeakConfirm
+        result={rewrite}
+        settingsLabel={`${relationshipLabels[relationship]} · ${closenessLabels[closeness]}`}
+        saveState={saveState}
+        onSave={() => void saveToFeedbackBook()}
         onAnswer={onAnswer}
         onSayMore={() => {
-          setIsRecording(false);
-          setPage('recording');
+          setText('');
+          backToInput();
         }}
-        result={currentResult}
       />
     );
-  }
-
-  if (page === 'loading') {
-    return <SpeakLoading onComplete={() => setPage('confirmation')} />;
   }
 
   return (
@@ -85,25 +162,39 @@ function SpeakMain({
             </button>
           </div>
           <p className="hint">Selected settings will tailor the voice tone and vocabulary automatically.</p>
+          <form className="speak-text-form" onSubmit={handleSubmit}>
+            <label className="speak-text-label" htmlFor="speak-text">Or type what you want to say</label>
+            <div className="speak-text-row">
+              <input
+                id="speak-text"
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+                placeholder="e.g. 나는 하고 싶어요 study"
+                autoComplete="off"
+              />
+              <button type="submit" disabled={!text.trim()}>Go</button>
+            </div>
+          </form>
+          {error && <p className="speak-error" role="alert">{error}</p>}
         </section>
         <div className="speak-options">
           <ChoiceSection
             label="Who is it?"
-            selectedLabel={relationship === 'friend_younger' ? 'Friend / Younger' : 'Older'}
+            selectedLabel={relationshipLabels[relationship]}
             options={[
-              { label: 'Friend / Younger', value: 'friend_younger' },
-              { label: 'Older', value: 'older' },
+              { label: relationshipLabels.friend_younger, value: 'friend_younger' },
+              { label: relationshipLabels.older, value: 'older' },
             ]}
             selected={relationship}
             onSelect={setRelationship}
           />
           <ChoiceSection
             label="How well do you know each other?"
-            selectedLabel={closeness === 'a_little' ? 'A little' : closeness[0].toUpperCase() + closeness.slice(1)}
+            selectedLabel={closenessLabels[closeness]}
             options={[
-              { label: 'Stranger', value: 'stranger' },
-              { label: 'A little', value: 'a_little' },
-              { label: 'Close', value: 'close' },
+              { label: closenessLabels.stranger, value: 'stranger' },
+              { label: closenessLabels.a_little, value: 'a_little' },
+              { label: closenessLabels.close, value: 'close' },
             ]}
             selected={closeness}
             onSelect={setCloseness}

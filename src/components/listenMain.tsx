@@ -2,9 +2,10 @@ import { useState } from 'react';
 import ListenCheck from './listenCheck';
 import ListenConfirm from './listenConfirm';
 import ListenLoading from './listenLoading';
-import { mockListenResult, type VocabularyItem } from '../data/mockVoiceData';
+import { mockListenResult } from '../data/mockVoiceData';
+import type { NewFeedbackEntry } from '../store/feedbackBook';
 
-function ListenMain({ onSaveWords }: { onSaveWords: (words: VocabularyItem[]) => void }) {
+function ListenMain({ onSave }: { onSave: (entry: NewFeedbackEntry) => Promise<boolean> }) {
   const [page, setPage] = useState<
     'recording' | 'check' | 'loading' | 'confirm'
   >(
@@ -22,12 +23,12 @@ function ListenMain({ onSaveWords }: { onSaveWords: (words: VocabularyItem[]) =>
       <ListenCheck
         onNo={handleRetry}
         onYes={() => {
-          onSaveWords(mockListenResult.breakdown.map((item) => ({
-            word: item.word,
-            tag: item.tag,
-            meaning: item.word === '콩나물국이' ? 'bean sprout soup' : 'refreshing',
-            explanation: item.explanation,
-          })));
+          void onSave({
+            kind: 'listen',
+            korean: mockListenResult.koreanSentence,
+            english: mockListenResult.englishTranslation,
+            expressions: mockListenResult.breakdown.map(({ word, tag, explanation }) => ({ word, tag, explanation })),
+          });
           setPage('confirm');
         }}
       />

@@ -2,38 +2,30 @@ import ListenMain from './components/listenMain';
 import SpeakMain from './components/speakMain';
 import LearnMain from './components/learnMain';
 import { useState } from 'react';
-import type { VocabularyItem } from './data/mockVoiceData';
+import { useFeedbackBook } from './store/feedbackBook';
 
 function App() {
   const [activeMenu, setActiveMenu] = useState<'speak' | 'listen' | 'learn'>('listen');
-  const [learnWords, setLearnWords] = useState<VocabularyItem[]>(() => {
-    const saved = window.localStorage.getItem('voice-assistant-vocabulary');
-    if (!saved) return [];
-    try {
-      return JSON.parse(saved) as VocabularyItem[];
-    } catch {
-      return [];
-    }
-  });
-
-  const saveWords = (words: VocabularyItem[]) => {
-    setLearnWords((current) => {
-      const next = [...words, ...current.filter((old) => !words.some((item) => item.word === old.word))];
-      window.localStorage.setItem('voice-assistant-vocabulary', JSON.stringify(next));
-      return next;
-    });
-  };
+  const feedbackBook = useFeedbackBook();
 
   return (
     <>
       {activeMenu === 'listen' ? (
-        <ListenMain onSaveWords={saveWords} />
+        <ListenMain onSave={feedbackBook.addEntry} />
       ) : activeMenu === 'speak' ? (
         <SpeakMain
           onAnswer={() => setActiveMenu('listen')}
+          onSave={feedbackBook.addEntry}
         />
       ) : (
-        <LearnMain words={learnWords} />
+        <LearnMain
+          entries={feedbackBook.entries}
+          isLoading={feedbackBook.isLoading}
+          error={feedbackBook.error}
+          mode={feedbackBook.mode}
+          onRemove={(id) => void feedbackBook.removeEntry(id)}
+          onUpdateMemo={feedbackBook.updateMemo}
+        />
       )}
       <nav className="bottom-navigation" aria-label="Main navigation">
         <button

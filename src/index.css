@@ -1784,3 +1784,58 @@ padding-left: 12px;
 
 .translation-actions .answer-button{background:#10b981;box-shadow:0 10px 20px rgb(16 185 129 / 25%)}.translation-actions .answer-button small{color:#d1fae5}
 .learn-page{min-height:calc(100vh - 82px);padding:24px 20px;color:#0f172a}.learn-header{display:grid;gap:10px;margin-bottom:24px}.learn-brand{display:flex;align-items:center;gap:8px;color:#64748b;font-size:12px;font-weight:800;letter-spacing:.12em}.learn-status-dot{width:9px;height:9px;border-radius:50%;background:#16a34a}.learn-header p{margin:0;color:#94a3b8;font-size:13px}.learn-content{display:grid;gap:14px}.learn-card{display:grid;gap:9px;padding:20px;border:1px solid #e2e8f0;border-radius:22px;background:#fff;box-shadow:0 8px 20px rgb(15 23 42 / 6%)}.learn-card-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.learn-card h2{margin:0;font-size:23px}.learn-card-heading span{padding:5px 8px;border-radius:8px;background:#eff6ff;color:#2563eb;font-size:10px;font-weight:800}.learn-card>strong{color:#2563eb;font-size:15px}.learn-card p{margin:0;color:#64748b;font-size:13px;line-height:1.55}.learn-empty{display:grid;gap:8px;padding:32px 20px;border:1px dashed #cbd5e1;border-radius:22px;text-align:center;color:#64748b}.learn-empty strong{color:#334155}
+
+/* ---------- Speak: text input ---------- */
+.speak-text-form { display: grid; gap: 8px; width: 100%; max-width: 320px; margin-top: 20px; }
+.speak-text-label { color: #94a3b8; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-align: center; text-transform: uppercase; }
+.speak-text-row { display: flex; gap: 8px; }
+.speak-text-row input { flex: 1; min-width: 0; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #f8fafc; color: #0f172a; font: inherit; font-size: 14px; }
+.speak-text-row input:focus { outline: 2px solid #93c5fd; border-color: #2563eb; background: #fff; }
+.speak-text-row button { padding: 0 18px; border: 0; border-radius: 14px; background: #2563eb; color: #fff; font-weight: 700; cursor: pointer; }
+.speak-text-row button:disabled { background: #cbd5e1; cursor: not-allowed; }
+.speak-error { margin: 12px 0 0; color: #dc2626; font-size: 12px; text-align: center; }
+
+/* ---------- Speak: intent check ---------- */
+.confirmation-source { margin: 14px 0 0; color: #64748b; font-size: 13px; text-align: center; }
+
+/* ---------- Speak: result ---------- */
+.speak-result-content { justify-content: flex-start; gap: 20px; padding-top: 16px; }
+.speak-play-button { margin-top: 14px; padding: 6px 12px; border: 1px solid #bfdbfe; border-radius: 999px; background: #fff; color: #2563eb; font-size: 12px; font-weight: 600; cursor: pointer; }
+.speak-corrections { text-align: left; }
+.speak-corrections h2 { margin: 0 0 10px; color: #94a3b8; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.speak-corrections ol, .fb-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.speak-corrections li, .fb-list li { padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }
+.speak-correction-change { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 14px; }
+.speak-correction-change s { color: #94a3b8; }
+.speak-correction-change span { color: #94a3b8; }
+.speak-correction-change strong { color: #2563eb; }
+.speak-corrections li p, .fb-list li p { margin: 6px 0 0; color: #64748b; font-size: 12px; line-height: 1.55; }
+.speak-note { margin: 0; padding: 10px 12px; border-radius: 12px; background: #fffbeb; color: #92400e; font-size: 12px; line-height: 1.5; text-align: left; }
+.speak-save-button { width: 100%; min-height: 48px; border: 1px solid #c7d2fe; border-radius: 14px; background: #eef2ff; color: #4338ca; font-size: 14px; font-weight: 700; cursor: pointer; }
+.speak-save-button:disabled { border-color: #bbf7d0; background: #f0fdf4; color: #16a34a; cursor: default; }
+
+/* ---------- Learn: Feedback Book ---------- */
+.learn-page { padding-bottom: 110px; }
+.fb-card h2 { font-size: 21px; line-height: 1.4; }
+.fb-kind { padding: 5px 8px; border-radius: 8px; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+.learn-card-heading .fb-kind-speak { background: #eff6ff; color: #2563eb; }
+.learn-card-heading .fb-kind-listen { background: #f0fdf4; color: #16a34a; }
+.fb-date { color: #94a3b8; font-size: 12px; }
+.fb-card p.fb-sub { color: #64748b; font-size: 13px; }
+.fb-tone { justify-self: start; padding: 4px 8px; border-radius: 8px; background: #f1f5f9; color: #475569; font-size: 11px; font-weight: 600; }
+.fb-tag { padding: 2px 6px; border-radius: 6px; background: #f1f5f9; font-size: 10px; font-weight: 700; }
+.fb-memo { display: grid; gap: 6px; }
+.fb-memo span { color: #94a3b8; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.fb-memo textarea { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; color: #0f172a; font: inherit; font-size: 13px; resize: vertical; }
+.fb-memo textarea:focus { outline: 2px solid #93c5fd; border-color: #2563eb; background: #fff; }
+.fb-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.fb-confirm-text { margin-right: auto; color: #dc2626; font-size: 12px; font-weight: 600; }
+.fb-button { padding: 7px 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; color: #64748b; font-size: 12px; font-weight: 600; cursor: pointer; }
+.fb-button-primary { border-color: #2563eb; background: #2563eb; color: #fff; }
+.fb-button-danger { border-color: #dc2626; background: #dc2626; color: #fff; }
+.speak-save-button.is-error { border-color: #fecaca; background: #fef2f2; color: #dc2626; }
+.fb-mode { justify-self: start; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+.fb-mode-supabase { background: #ecfdf5; color: #059669; }
+.fb-mode-local { background: #f1f5f9; color: #64748b; }
+.fb-error { margin: 0; padding: 10px 12px; border-radius: 12px; background: #fef2f2; color: #dc2626; font-size: 12px; line-height: 1.5; }
+.fb-button:disabled { opacity: .6; cursor: default; }
