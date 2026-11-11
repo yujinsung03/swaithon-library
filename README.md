@@ -68,7 +68,7 @@ npm install
 ```bash
 # 터미널 1: 백엔드 (http://localhost:8000)
 cd backend
-../.venv/bin/uvicorn app.main:app --reload --port 8000
+../.venv/bin/uvicorn app.main:app --reload --port 8000 --timeout-graceful-shutdown 2
 ```
 
 ```bash
@@ -84,6 +84,7 @@ Chrome에서 http://localhost:5173 을 열고, 마이크 권한을 물으면 **�
 | 증상 | 확인할 것 |
 |---|---|
 | Speak/Listen에서 `Failed to fetch` | 백엔드(터미널 1)가 켜져 있는지 |
+| 백엔드 터미널에 `Waiting for connections to close`가 뜨고 멈춤 | 실행 명령에 `--timeout-graceful-shutdown 2`가 있는지. 없으면 Ctrl+C로 끄고 위 명령으로 다시 실행 |
 | `GEMINI_API_KEY is not set` | `backend/.env`에 키를 넣었는지. 넣은 뒤 백엔드를 다시 켜기 |
 | `The free AI quota is used up` | 오늘 무료 한도를 다 씀. 내일 다시 하거나 다른 키 사용 |
 | 마이크 버튼이 반응 없음 | Chrome인지, 주소창에서 마이크를 허용했는지 |

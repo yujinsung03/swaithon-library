@@ -11,7 +11,7 @@ python3 -m venv .venv
 
 # backend/.env.example을 backend/.env로 복사하고 GEMINI_API_KEY 입력
 cd backend
-../.venv/bin/uvicorn app.main:app --reload --port 8000
+../.venv/bin/uvicorn app.main:app --reload --port 8000 --timeout-graceful-shutdown 2
 ```
 
 - http://localhost:8000/health : 서버 상태와 키 설정 여부

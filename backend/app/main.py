@@ -1,4 +1,4 @@
-"""FastAPI server. Run from the backend/ folder:  uvicorn app.main:app --reload --port 8000"""
+"""FastAPI server. Run from the backend/ folder:  uvicorn app.main:app --reload --port 8000 --timeout-graceful-shutdown 2"""
 
 import base64
 import binascii
