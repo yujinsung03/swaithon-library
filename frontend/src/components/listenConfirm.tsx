@@ -1,59 +1,61 @@
 import type { ReactNode } from 'react';
-import { mockListenResult } from '../data/mockVoiceData';
+import type { ListenExplainResponse } from '../api/types';
 
-interface SwaithonPage2Props {
+interface ListenConfirmProps {
+  result: ListenExplainResponse;
   onBack: () => void;
 }
 
-function ListenConfirm({ onBack }: SwaithonPage2Props) {
+function ListenConfirm({ result, onBack }: ListenConfirmProps) {
   const playAudio = () => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(
-        new SpeechSynthesisUtterance(mockListenResult.koreanSentence),
-      );
-    }
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(result.korean);
+    utterance.lang = 'ko-KR';
+    window.speechSynthesis.speak(utterance);
   };
 
   return (
     <div className="result-page">
       <header className="result-header">
         <div className="result-header-left">
-          <button className="result-back-button" type="button" onClick={onBack} aria-label="Go back">
+          <button className="result-back-button" type="button" onClick={onBack} aria-label="Listen again">
             ←
           </button>
           <span>LISTENING &amp; CONTEXT</span>
         </div>
-        <div className="live-status"><span />Active Live</div>
+        <div className="live-status"><span />Saved to Feedback Book</div>
       </header>
 
       <main className="result-content">
         <article className="translation-card">
-          <div className="context-label">◌ <span>HE/SHE IS TRYING TO SAY</span></div>
+          <div className="context-label">◌ <span>WHAT THEY MEAN</span></div>
           <div className="sentence-block">
             <div className="sentence-row">
-              <h1>{mockListenResult.koreanSentence}</h1>
-              <button type="button" onClick={playAudio} aria-label="Listen audio">🔊</button>
+              <h1>{result.korean}</h1>
+              <button type="button" onClick={playAudio} aria-label="Play pronunciation">🔊</button>
             </div>
-            <p className="translation">{mockListenResult.englishTranslation}</p>
+            <p className="translation">&quot;{result.english}&quot;</p>
           </div>
-          <hr />
-          <div className="breakdown">
-            <div className="breakdown-heading">
-              <span>CULTURAL &amp; WORD BREAKDOWN</span><span>▣</span>
-            </div>
-            <BreakdownCard
-              word={mockListenResult.breakdown[0].word}
-              tag={mockListenResult.breakdown[0].tag}
-              text={mockListenResult.breakdown[0].explanation}
-            />
-            <BreakdownCard
-              word={mockListenResult.breakdown[1].word}
-              tag={mockListenResult.breakdown[1].tag}
-              warm={mockListenResult.breakdown[1].warm}
-              text={mockListenResult.breakdown[1].explanation}
-            />
-          </div>
+          {result.expressions.length > 0 && (
+            <>
+              <hr />
+              <div className="breakdown">
+                <div className="breakdown-heading">
+                  <span>CULTURAL &amp; WORD BREAKDOWN</span><span>▣</span>
+                </div>
+                {result.expressions.map((expression) => (
+                  <BreakdownCard
+                    key={expression.word}
+                    word={expression.word}
+                    tag={expression.tag}
+                    warm={expression.isCultural}
+                    text={expression.explanation}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </article>
       </main>
 

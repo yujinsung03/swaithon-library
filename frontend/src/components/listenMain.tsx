@@ -1,64 +1,92 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import ListenCheck from './listenCheck';
 import ListenConfirm from './listenConfirm';
 import ListenLoading from './listenLoading';
-import { mockListenResult } from '../data/mockVoiceData';
+import { explainListening } from '../api/client';
+import type { ListenExplainResponse } from '../api/types';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import type { NewFeedbackEntry } from '../store/feedbackBook';
 
+type Page = 'recording' | 'check' | 'loading' | 'result';
+
 function ListenMain({ onSave }: { onSave: (entry: NewFeedbackEntry) => Promise<boolean> }) {
-  const [page, setPage] = useState<
-    'recording' | 'check' | 'loading' | 'confirm'
-  >(
-    'recording',
-  );
-  const [isRecording, setIsRecording] = useState(false);
+  const [page, setPage] = useState<Page>('recording');
+  const [heard, setHeard] = useState('');
+  const [typed, setTyped] = useState('');
+  const [result, setResult] = useState<ListenExplainResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // The other person speaks Korean, so Listen always recognizes Korean.
+  const speech = useSpeechRecognition({
+    onEnd: (text) => {
+      if (text) {
+        setHeard(text);
+        setPage('check');
+      }
+    },
+  });
+  const isRecording = speech.isListening;
+
+  const explain = async () => {
+    setError(null);
+    setPage('loading');
+    try {
+      const explained = await explainListening({ koreanText: heard });
+      setResult(explained);
+      setPage('result');
+      void onSave({
+        kind: 'listen',
+        korean: explained.korean,
+        english: explained.english,
+        expressions: explained.expressions.map(({ word, tag, explanation }) => ({ word, tag, explanation })),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setPage('check');
+    }
+  };
 
   const handleRetry = () => {
-    setIsRecording(false);
+    speech.cancel();
+    setError(null);
     setPage('recording');
   };
 
-  if (page === 'check') {
-    return (
-      <ListenCheck
-        onNo={handleRetry}
-        onYes={() => {
-          void onSave({
-            kind: 'listen',
-            korean: mockListenResult.koreanSentence,
-            english: mockListenResult.englishTranslation,
-            expressions: mockListenResult.breakdown.map(({ word, tag, explanation }) => ({ word, tag, explanation })),
-          });
-          setPage('confirm');
-        }}
-      />
-    );
-  }
+  const toggleRecording = () => {
+    if (isRecording) {
+      speech.stop(); // onEnd moves to the check screen
+    } else {
+      setError(null);
+      speech.start('ko-KR');
+    }
+  };
 
-  if (page === 'confirm') {
-    return <ListenConfirm onBack={handleRetry} />;
+  const handleTyped = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const text = typed.trim();
+    if (!text) return;
+    setHeard(text);
+    setPage('check');
+  };
+
+  if (page === 'check') {
+    return <ListenCheck text={heard} error={error} onNo={handleRetry} onYes={() => void explain()} />;
   }
 
   if (page === 'loading') {
-    return <ListenLoading onComplete={() => setPage('check')} />;
+    return <ListenLoading />;
   }
 
-  const toggleRecording = () => {
-    if (isRecording) {
-      setIsRecording(false);
-      setPage('loading');
-      return;
-    }
-
-    setIsRecording(true);
-  };
+  if (page === 'result' && result) {
+    return <ListenConfirm result={result} onBack={handleRetry} />;
+  }
 
   return (
     <div className="listen-page">
       <header className="listen-header">
         <div className="listen-brand">
           <span className="listen-status-dot" />
-          <span>음성 입력 대기 중</span>
+          <span>{isRecording ? '듣는 중' : '음성 입력 대기 중'}</span>
         </div>
       </header>
       <main className="listen-content">
@@ -71,6 +99,7 @@ function ListenMain({ onSave }: { onSave: (entry: NewFeedbackEntry) => Promise<b
               ))}
             </div>
           )}
+          {isRecording && speech.transcript && <p className="listen-transcript">{speech.transcript}</p>}
         </div>
         <div className="listen-microphone-wrap">
           {isRecording && (
@@ -83,14 +112,33 @@ function ListenMain({ onSave }: { onSave: (entry: NewFeedbackEntry) => Promise<b
             className={`listen-microphone${isRecording ? ' is-recording' : ''}`}
             type="button"
             onClick={toggleRecording}
+            disabled={!speech.isSupported}
             aria-label={isRecording ? '음성 인식 중지' : '음성 인식 시작'}
           >
             <span className="listen-microphone-icon">{isRecording ? '■' : '●'}</span>
             <span>{isRecording ? '중지' : '말하기'}</span>
           </button>
         </div>
+        {(error ?? speech.error) && <p className="speak-error" role="alert">{error ?? speech.error}</p>}
+        <form className="speak-text-form listen-text-form" onSubmit={handleTyped}>
+          <label className="speak-text-label" htmlFor="listen-text">Or type what you heard</label>
+          <div className="speak-text-row">
+            <input
+              id="listen-text"
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
+              placeholder="예: 콩나물국이 시원하다"
+              autoComplete="off"
+            />
+            <button type="submit" disabled={!typed.trim()}>Go</button>
+          </div>
+        </form>
       </main>
-      <footer className="listen-footer">버튼을 터치하면 음성 인식이 시작됩니다.</footer>
+      <footer className="listen-footer">
+        {speech.isSupported
+          ? '버튼을 누르고 상대방이 말하게 하세요. 다 들으면 중지를 누르세요.'
+          : '음성 인식은 Chrome, Edge, Safari에서 됩니다. 아래에 입력해도 돼요.'}
+      </footer>
     </div>
   );
 }

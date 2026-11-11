@@ -1,9 +1,11 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import SpeakCheck from './speakCheck';
 import SpeakLoading from './speakLoading';
 import SpeakConfirm from './speakConfirm';
 import { checkSpeakIntent, rewriteSpeech } from '../api/client';
-import { demoSentences } from '../api/mock';
+import { useAudioRecorder } from '../hooks/useAudioRecorder';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { recordingToWavBase64 } from '../utils/wav';
 import type {
   Closeness,
   Relationship,
@@ -21,6 +23,17 @@ const relationshipLabels: Record<Relationship, string> = {
   older: 'Older',
 };
 
+// Speech recognition hears one language at a time. Korean is the default because
+// mixed sentences ("나는 하고 싶어요 study") still come through, with English words in Hangul.
+const speechLanguages = [
+  { code: 'ko-KR', label: '한국어' },
+  { code: 'en-US', label: 'English' },
+  { code: 'vi-VN', label: 'Tiếng Việt' },
+  { code: 'zh-CN', label: '中文' },
+  { code: 'ja-JP', label: '日本語' },
+  { code: 'th-TH', label: 'ไทย' },
+] as const;
+
 const closenessLabels: Record<Closeness, string> = {
   stranger: 'Stranger',
   a_little: 'A little',
@@ -36,21 +49,20 @@ function SpeakMain({ onAnswer, onSave }: SpeakMainProps) {
   const [page, setPage] = useState<Page>('input');
   const [relationship, setRelationship] = useState<Relationship>('friend_younger');
   const [closeness, setCloseness] = useState<Closeness>('close');
-  const [isRecording, setIsRecording] = useState(false);
   const [text, setText] = useState('');
-  const [demoIndex, setDemoIndex] = useState(0);
+  const [speechLang, setSpeechLang] = useState<string>('ko-KR');
   const [intent, setIntent] = useState<SpeakIntentResponse | null>(null);
   const [rewrite, setRewrite] = useState<SpeakRewriteResponse | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  const requestIntent = async (sourceText: string) => {
+  const requestIntent = async (sourceText: string, audio?: { data: string; mimeType: string }) => {
     const trimmed = sourceText.trim();
-    if (!trimmed) return;
+    if (!trimmed && !audio) return;
     setError(null);
     setPage('loading-intent');
     try {
-      setIntent(await checkSpeakIntent({ sourceText: trimmed }));
+      setIntent(await checkSpeakIntent({ sourceText: trimmed, audio }));
       setPage('check');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
@@ -72,17 +84,62 @@ function SpeakMain({ onAnswer, onSave }: SpeakMainProps) {
     }
   };
 
-  // No speech recognition yet: stopping the mic "hears" one of the demo sentences.
-  const toggleRecording = () => {
-    if (!isRecording) {
-      setIsRecording(true);
+  // Voice input uses two things at once:
+  // - browser speech recognition shows the words live while the user talks (free, one language);
+  // - the recording goes to the AI, which transcribes mixed-language speech accurately and
+  //   works out the meaning in the same request.
+  const recorder = useAudioRecorder();
+  const usingRecorderRef = useRef(false); // read inside callbacks
+  const [isUsingRecorder, setIsUsingRecorder] = useState(false); // same value, for rendering
+  const speech = useSpeechRecognition({
+    onEnd: (heard) => {
+      // Without a recording (no MediaRecorder or mic blocked), send the browser's text.
+      if (!usingRecorderRef.current && heard) {
+        setText(heard);
+        void requestIntent(heard);
+      }
+    },
+  });
+  const isRecording = recorder.isRecording || speech.isListening;
+  const canUseVoice = recorder.isSupported || speech.isSupported;
+  // While recording, the input shows the words as they are recognized.
+  const inputValue = isRecording ? speech.transcript : text;
+
+  const startRecording = async () => {
+    setError(null);
+    usingRecorderRef.current = false;
+    setIsUsingRecorder(false);
+    if (speech.isSupported) speech.start(speechLang);
+    const started = await recorder.start();
+    usingRecorderRef.current = started;
+    setIsUsingRecorder(started);
+  };
+
+  const stopAndSend = async () => {
+    const recordingPromise = recorder.stop();
+    speech.stop();
+    if (!usingRecorderRef.current) return; // onEnd sends the browser text instead
+    const recording = await recordingPromise;
+    const browserText = speech.getText();
+    setText(browserText);
+
+    let audio: { data: string; mimeType: string } | undefined;
+    if (recording && recording.size > 0) {
+      try {
+        audio = { data: await recordingToWavBase64(recording), mimeType: 'audio/wav' };
+      } catch {
+        audio = undefined; // fall back to the browser text
+      }
+    }
+    if (!browserText && !audio) {
+      setError('I didn’t hear anything. Tap the mic and speak again.');
       return;
     }
-    setIsRecording(false);
-    const heard = demoSentences[demoIndex % demoSentences.length];
-    setDemoIndex((index) => index + 1);
-    setText(heard);
-    void requestIntent(heard);
+    void requestIntent(browserText, audio);
+  };
+
+  const toggleRecording = () => {
+    void (isRecording ? stopAndSend() : startRecording());
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -105,7 +162,8 @@ function SpeakMain({ onAnswer, onSave }: SpeakMainProps) {
   };
 
   const backToInput = () => {
-    setIsRecording(false);
+    speech.cancel();
+    recorder.cancel();
     setPage('input');
   };
 
@@ -156,26 +214,57 @@ function SpeakMain({ onAnswer, onSave }: SpeakMainProps) {
           </div>
           <div className="microphone-wrap">
             {isRecording && <><span className="pulse-ring pulse-ring-outer" /><span className="pulse-ring pulse-ring-inner" /></>}
-            <button className={`microphone-button${isRecording ? ' is-recording' : ''}`} type="button" onClick={toggleRecording}>
+            <button
+              className={`microphone-button${isRecording ? ' is-recording' : ''}`}
+              type="button"
+              onClick={toggleRecording}
+              disabled={!canUseVoice}
+              aria-label={isRecording ? 'Stop and send' : 'Start speaking'}
+            >
               <span className="microphone-icon">{isRecording ? '■' : '●'}</span>
               <span>{isRecording ? 'STOP' : 'SPEAK'}</span>
             </button>
           </div>
-          <p className="hint">Selected settings will tailor the voice tone and vocabulary automatically.</p>
+          <label className="speak-lang">
+            <span>I&apos;m speaking in</span>
+            <select
+              id="speak-lang"
+              value={speechLang}
+              onChange={(event) => setSpeechLang(event.target.value)}
+              disabled={isRecording}
+            >
+              {speechLanguages.map((language) => (
+                <option key={language.code} value={language.code}>{language.label}</option>
+              ))}
+            </select>
+          </label>
+          <p className="hint">
+            {canUseVoice
+              ? 'Mixing languages is OK. Selected settings will tailor the tone automatically.'
+              : 'This browser can’t use the microphone. You can still type below.'}
+          </p>
           <form className="speak-text-form" onSubmit={handleSubmit}>
-            <label className="speak-text-label" htmlFor="speak-text">Or type what you want to say</label>
+            <label className="speak-text-label" htmlFor="speak-text">
+              {isRecording ? 'Hearing...' : 'Or type what you want to say'}
+            </label>
             <div className="speak-text-row">
               <input
                 id="speak-text"
-                value={text}
+                value={inputValue}
                 onChange={(event) => setText(event.target.value)}
                 placeholder="e.g. 나는 하고 싶어요 study"
                 autoComplete="off"
+                readOnly={isRecording}
               />
-              <button type="submit" disabled={!text.trim()}>Go</button>
+              <button type="submit" disabled={isRecording || !text.trim()}>Go</button>
             </div>
           </form>
-          {error && <p className="speak-error" role="alert">{error}</p>}
+          {/* The live preview's own errors only matter when there is no recording to fall back on. */}
+          {(error ?? recorder.error ?? (isUsingRecorder ? null : speech.error)) && (
+            <p className="speak-error" role="alert">
+              {error ?? recorder.error ?? speech.error}
+            </p>
+          )}
         </section>
         <div className="speak-options">
           <ChoiceSection

@@ -3,6 +3,8 @@
 
 import type {
   Closeness,
+  ListenExplainRequest,
+  ListenExplainResponse,
   Correction,
   Relationship,
   SpeakIntentRequest,
@@ -103,15 +105,13 @@ const examples: DemoExample[] = [
 
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
-/** Sample sentences the mic button uses until real speech recognition exists. */
-export const demoSentences = ['나는 하고 싶어요 study', '나는 피자가 먹고 싶다'];
-
 export async function checkSpeakIntent({ sourceText }: SpeakIntentRequest): Promise<SpeakIntentResponse> {
   await wait(600);
   const example = examples.find((item) => item.matches(sourceText));
+  const text = sourceText.trim() || '(voice message)';
   return {
-    sourceText,
-    intentEnglish: example?.intentEnglish ?? `"${sourceText}"`,
+    sourceText: text,
+    intentEnglish: example?.intentEnglish ?? `"${text}"`,
   };
 }
 
@@ -138,5 +138,35 @@ export async function rewriteSpeech({
     korean,
     tone: toneLabels[key],
     corrections: example.baseCorrections(key, korean),
+  };
+}
+
+export async function explainListening({ koreanText }: ListenExplainRequest): Promise<ListenExplainResponse> {
+  await wait(800);
+  if (!koreanText.includes('콩나물')) {
+    return {
+      korean: koreanText,
+      english: 'Demo mode: the translation appears once the backend is connected.',
+      expressions: [],
+    };
+  }
+  return {
+    korean: '콩나물국이 시원하다.',
+    english: 'This bean sprout soup is refreshing and soothing.',
+    expressions: [
+      {
+        word: '콩나물국',
+        tag: 'Noun',
+        explanation: 'Bean sprout soup; a popular, light Korean soup loved for its comforting flavor.',
+        isCultural: false,
+      },
+      {
+        word: '시원하다',
+        tag: 'Cultural nuance',
+        explanation:
+          'Literally "cool", but about hot soup it means refreshing and soothing, the kind of broth that relieves fatigue or a hangover.',
+        isCultural: true,
+      },
+    ],
   };
 }

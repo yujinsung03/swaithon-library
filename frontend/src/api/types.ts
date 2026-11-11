@@ -6,7 +6,10 @@ export type Closeness = 'stranger' | 'a_little' | 'close';
 
 /** POST /speak/intent — what did the user mean? (shown back in English) */
 export interface SpeakIntentRequest {
+  /** What the browser heard. Can be empty or wrong for mixed-language speech. */
   sourceText: string;
+  /** The recording (base64 WAV). When sent, the AI's own transcript replaces sourceText. */
+  audio?: { data: string; mimeType: string };
 }
 
 export interface SpeakIntentResponse {
@@ -34,4 +37,23 @@ export interface SpeakRewriteResponse {
   corrections: Correction[];
   /** Optional extra message, e.g. when running in demo mode. */
   note?: string;
+}
+
+/** POST /listen/explain — what did the Korean speaker mean? */
+export interface ListenExplainRequest {
+  koreanText: string;
+}
+
+export interface ListenExpression {
+  word: string;
+  tag: string;
+  explanation: string;
+  /** True when the meaning needs cultural context or differs from the literal words. */
+  isCultural: boolean;
+}
+
+export interface ListenExplainResponse {
+  korean: string;
+  english: string;
+  expressions: ListenExpression[];
 }

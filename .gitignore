@@ -26,3 +26,7 @@ Thumbs.db
 
 # Local virtual environment (Node via nodeenv)
 .venv/
+
+# Python
+__pycache__/
+*.pyc

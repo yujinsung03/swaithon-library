@@ -1,5 +1,7 @@
 import * as mock from './mock';
 import type {
+  ListenExplainRequest,
+  ListenExplainResponse,
   SpeakIntentRequest,
   SpeakIntentResponse,
   SpeakRewriteRequest,
@@ -19,7 +21,17 @@ async function post<TResponse>(path: string, body: unknown): Promise<TResponse> 
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error(`Request to ${path} failed (${response.status})`);
+    // The backend sends { detail: "..." } with a readable message.
+    let detail = '';
+    try {
+      const body: unknown = await response.json();
+      if (body && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string') {
+        detail = body.detail;
+      }
+    } catch {
+      // Not JSON; fall back to the status code.
+    }
+    throw new Error(detail || `Request to ${path} failed (${response.status})`);
   }
   return (await response.json()) as TResponse;
 }
@@ -30,4 +42,8 @@ export function checkSpeakIntent(request: SpeakIntentRequest): Promise<SpeakInte
 
 export function rewriteSpeech(request: SpeakRewriteRequest): Promise<SpeakRewriteResponse> {
   return isMockMode ? mock.rewriteSpeech(request) : post('/speak/rewrite', request);
+}
+
+export function explainListening(request: ListenExplainRequest): Promise<ListenExplainResponse> {
+  return isMockMode ? mock.explainListening(request) : post('/listen/explain', request);
 }

@@ -1839,3 +1839,10 @@ padding-left: 12px;
 .fb-mode-local { background: #f1f5f9; color: #64748b; }
 .fb-error { margin: 0; padding: 10px 12px; border-radius: 12px; background: #fef2f2; color: #dc2626; font-size: 12px; line-height: 1.5; }
 .fb-button:disabled { opacity: .6; cursor: default; }
+
+/* ---------- Speech recognition ---------- */
+.speak-lang { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; color: #64748b; font-size: 12px; }
+.speak-lang select { padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; color: #0f172a; font: inherit; font-size: 13px; }
+.microphone-button:disabled, .listen-microphone:disabled { opacity: .45; cursor: not-allowed; }
+.listen-transcript { max-width: 320px; margin: 16px auto 0; color: #0f172a; font-size: 18px; font-weight: 600; line-height: 1.5; text-align: center; }
+.listen-text-form { margin: 8px auto 0; }
