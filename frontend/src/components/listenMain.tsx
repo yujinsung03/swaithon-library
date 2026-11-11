@@ -99,7 +99,6 @@ function ListenMain({ onSave }: { onSave: (entry: NewFeedbackEntry) => Promise<b
               ))}
             </div>
           )}
-          {isRecording && speech.transcript && <p className="listen-transcript">{speech.transcript}</p>}
         </div>
         <div className="listen-microphone-wrap">
           {isRecording && (
@@ -121,16 +120,19 @@ function ListenMain({ onSave }: { onSave: (entry: NewFeedbackEntry) => Promise<b
         </div>
         {(error ?? speech.error) && <p className="speak-error" role="alert">{error ?? speech.error}</p>}
         <form className="speak-text-form listen-text-form" onSubmit={handleTyped}>
-          <label className="speak-text-label" htmlFor="listen-text">Or type what you heard</label>
+          <label className="speak-text-label" htmlFor="listen-text">
+            {isRecording ? 'Hearing...' : 'Or type what you heard'}
+          </label>
           <div className="speak-text-row">
             <input
               id="listen-text"
-              value={typed}
+              value={isRecording ? speech.transcript : typed}
               onChange={(event) => setTyped(event.target.value)}
               placeholder="예: 콩나물국이 시원하다"
               autoComplete="off"
+              readOnly={isRecording}
             />
-            <button type="submit" disabled={!typed.trim()}>Go</button>
+            <button type="submit" disabled={isRecording || !typed.trim()}>Go</button>
           </div>
         </form>
       </main>
