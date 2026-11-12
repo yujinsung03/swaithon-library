@@ -1,7 +1,7 @@
 """Thin wrapper around the AI APIs that returns validated Pydantic objects.
 
 Two providers:
-  - "gateway": an OpenAI-compatible API (AI_GATEWAY_* in .env), e.g. gpt-6.1-sol.
+  - "gateway": OpenAI or any OpenAI-compatible API (AI_GATEWAY_* in .env), e.g. gpt-6.1-sol.
   - "gemini": the Gemini API (GEMINI_* in .env). Either Google's own (free AI Studio key, ~20
     requests/day per model) or a gateway that speaks the Gemini API (set GEMINI_BASE_URL).
 Text tasks try the gateway first, then Gemini. Voice recordings try Gemini first (it handles
@@ -165,7 +165,7 @@ _gateway_client: openai.AsyncOpenAI | None = None
 def _gateway() -> openai.AsyncOpenAI:
     global _gateway_client
     if _gateway_client is None:
-        base_url = os.getenv("AI_GATEWAY_BASE_URL") or "https://factchat-cloud.mindlogic.ai/v1/gateway"
+        base_url = os.getenv("AI_GATEWAY_BASE_URL") or "https://api.openai.com/v1"
         _gateway_client = openai.AsyncOpenAI(api_key=os.environ["AI_GATEWAY_API_KEY"], base_url=base_url, timeout=60, max_retries=0)
     return _gateway_client
 
