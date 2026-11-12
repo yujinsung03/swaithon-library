@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+# The app language the user picked. Explanations are written in it; Korean stays Korean.
+Language = Literal["en", "ja", "zh", "vi", "th", "ru"]
 Relationship = Literal["friend_younger", "older"]
 Closeness = Literal["stranger", "a_little", "close"]
 
@@ -21,6 +23,7 @@ class SpeakIntentRequest(BaseModel):
     sourceText: str = Field(default="", max_length=500)
     # The recording itself. When present, Gemini transcribes it and that transcript wins.
     audio: AudioInput | None = None
+    language: Language = "en"
 
     @model_validator(mode="after")
     def needs_text_or_audio(self) -> "SpeakIntentRequest":
@@ -41,6 +44,7 @@ class SpeakRewriteRequest(BaseModel):
     intentEnglish: str = Field(min_length=1, max_length=500)
     relationship: Relationship
     closeness: Closeness
+    language: Language = "en"
 
 
 class Correction(BaseModel):
@@ -58,8 +62,19 @@ class SpeakRewriteResponse(BaseModel):
 
 # ---- /listen/explain ----
 
+class ListenTranscribeRequest(BaseModel):
+    audio: AudioInput
+    # What the browser heard live (may be wrong). Used as a hint and as a fallback.
+    hint: str = Field(default="", max_length=500)
+
+
+class ListenTranscribeResponse(BaseModel):
+    korean: str
+
+
 class ListenExplainRequest(BaseModel):
     koreanText: str = Field(min_length=1, max_length=500)
+    language: Language = "en"
 
 
 class ListenExpression(BaseModel):
@@ -84,6 +99,7 @@ class WritingComposeRequest(BaseModel):
     situation: Situation
     recipient: str = Field(default="", max_length=100)
     intent: str = Field(min_length=1, max_length=1000)
+    language: Language = "en"
 
 
 class WritingNote(BaseModel):

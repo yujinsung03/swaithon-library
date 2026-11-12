@@ -34,6 +34,7 @@ cd backend
 |---|---|
 | `POST /speak/intent` ✅ | 사용자가 한 말(텍스트 또는 **녹음 WAV**) → 정확한 받아쓰기 + 영어 의도 문장. 녹음이 오면 음성을 받는 모델(게이트웨이의 gemini-3.8-flash 등)이 섞어 말한 언어를 그대로 받아씀 |
 | `POST /speak/rewrite` ✅ | 의도 + 관계 + 친밀도 → 한국어 표현, 수정 내역, 이유 |
+| `POST /listen/transcribe` ✅ | 상대방 말 **녹음 WAV** → 정확한 한국어 받아쓰기(띄어쓰기, 질문이면 `?`) |
 | `POST /listen/explain` ✅ | 한국어 문장 → 번역, 표현별 설명, 문화 맥락 |
 | `POST /writing/compose` ✅ | 상황 + 의도 + 받는 사람 → 문장, 이유 |
 

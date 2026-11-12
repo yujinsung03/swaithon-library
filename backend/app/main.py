@@ -20,10 +20,13 @@ load_dotenv()  # reads backend/.env
 from . import prompts  # noqa: E402
 from .llm import LLMError, generate_json, model_names, stream_json_text  # noqa: E402
 from .schemas import (  # noqa: E402
+    AudioInput,
     AudioIntentLLMOutput,
     IntentLLMOutput,
     ListenExplainRequest,
     ListenExplainResponse,
+    ListenTranscribeRequest,
+    ListenTranscribeResponse,
     RewriteLLMOutput,
     SpeakIntentRequest,
     SpeakIntentResponse,
@@ -76,21 +79,27 @@ async def health() -> dict[str, object]:
     }
 
 
+def _audio_contents(audio: AudioInput, browser_text: str) -> list[types.Part]:
+    """The recording plus the browser's live transcript as a hint."""
+    try:
+        audio_bytes = base64.b64decode(audio.data, validate=True)
+    except (binascii.Error, ValueError):
+        raise LLMError("The recording could not be read. Try again.", 400) from None
+    hint = f"Browser transcript (may be wrong): {browser_text}" if browser_text else "No browser transcript."
+    return [types.Part.from_bytes(data=audio_bytes, mime_type=audio.mimeType), types.Part.from_text(text=hint)]
+
+
 @app.post("/speak/intent", response_model=SpeakIntentResponse)
 async def speak_intent(body: SpeakIntentRequest) -> SpeakIntentResponse:
     browser_text = body.sourceText.strip()
 
     if body.audio is None:
-        result = await generate_json(prompts.INTENT_SYSTEM, browser_text, IntentLLMOutput)
+        user_message = prompts.intent_user_message(browser_text, body.language)
+        result = await generate_json(prompts.INTENT_SYSTEM, user_message, IntentLLMOutput)
         return SpeakIntentResponse(sourceText=browser_text, intentEnglish=result.intentEnglish.strip())
 
-    try:
-        audio_bytes = base64.b64decode(body.audio.data, validate=True)
-    except (binascii.Error, ValueError):
-        raise LLMError("The recording could not be read. Try again.", 400) from None
-
-    hint = f"Browser transcript (may be wrong): {browser_text}" if browser_text else "No browser transcript."
-    contents = [types.Part.from_bytes(data=audio_bytes, mime_type=body.audio.mimeType), types.Part.from_text(text=hint)]
+    contents = _audio_contents(body.audio, browser_text)
+    contents.append(types.Part.from_text(text=prompts.app_language_line(body.language)))
     result = await generate_json(prompts.AUDIO_INTENT_SYSTEM, contents, AudioIntentLLMOutput)
 
     transcript = result.transcript.strip() or browser_text
@@ -102,20 +111,31 @@ async def speak_intent(body: SpeakIntentRequest) -> SpeakIntentResponse:
 @app.post("/speak/rewrite", response_model=SpeakRewriteResponse)
 async def speak_rewrite(body: SpeakRewriteRequest) -> SpeakRewriteResponse:
     user_message = prompts.rewrite_user_message(
-        body.sourceText, body.intentEnglish, body.relationship, body.closeness
+        body.sourceText, body.intentEnglish, body.relationship, body.closeness, body.language
     )
     result = await generate_json(prompts.REWRITE_SYSTEM, user_message, RewriteLLMOutput)
     return SpeakRewriteResponse(korean=result.korean.strip(), tone=result.tone, corrections=result.corrections)
 
 
+@app.post("/listen/transcribe", response_model=ListenTranscribeResponse)
+async def listen_transcribe(body: ListenTranscribeRequest) -> ListenTranscribeResponse:
+    hint = body.hint.strip()
+    result = await generate_json(prompts.LISTEN_TRANSCRIBE_SYSTEM, _audio_contents(body.audio, hint), ListenTranscribeResponse)
+    korean = result.korean.strip() or hint
+    if not korean:
+        raise LLMError("I couldn't hear any speech in the recording. Tap the mic and try again.", 422)
+    return ListenTranscribeResponse(korean=korean)
+
+
 @app.post("/listen/explain", response_model=ListenExplainResponse)
 async def listen_explain(body: ListenExplainRequest) -> ListenExplainResponse:
-    return await generate_json(prompts.LISTEN_SYSTEM, body.koreanText, ListenExplainResponse)
+    user_message = prompts.listen_user_message(body.koreanText, body.language)
+    return await generate_json(prompts.LISTEN_SYSTEM, user_message, ListenExplainResponse)
 
 
 @app.post("/writing/compose", response_model=WritingComposeResponse)
 async def writing_compose(body: WritingComposeRequest) -> WritingComposeResponse:
-    user_message = prompts.writing_user_message(body.situation, body.recipient.strip(), body.intent.strip())
+    user_message = prompts.writing_user_message(body.situation, body.recipient.strip(), body.intent.strip(), body.language)
     return await generate_json(prompts.WRITING_SYSTEM, user_message, WritingComposeResponse)
 
 
@@ -128,7 +148,7 @@ async def writing_compose_stream(body: WritingComposeRequest) -> StreamingRespon
       {"type": "done", "result": {...}}  the validated WritingComposeResponse
       {"type": "error", "detail": "..."} something went wrong
     """
-    user_message = prompts.writing_user_message(body.situation, body.recipient.strip(), body.intent.strip())
+    user_message = prompts.writing_user_message(body.situation, body.recipient.strip(), body.intent.strip(), body.language)
 
     def event(payload: dict) -> str:
         return json.dumps(payload, ensure_ascii=False) + "\n"
