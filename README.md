@@ -258,7 +258,6 @@ py --version
 cd $HOME\Desktop
 git clone https://github.com/yujinsung03/swaithon-library.git
 cd swaithon-library
-git switch Yoona
 ```
 
 이미 받아 두었다면 프로젝트 폴더에서 `git pull`만 하면 됩니다.
@@ -361,7 +360,6 @@ npm run dev
 | `[Errno 10048] ... only one usage of each socket address` / 8000번 포트 사용 중 | 백엔드가 이미 다른 터미널에서 켜져 있습니다. 그 터미널에서 `Ctrl+C`로 끄거나, PowerShell에서 `Get-NetTCPConnection -LocalPort 8000` 으로 프로세스 번호(OwningProcess)를 찾아 `Stop-Process -Id 번호`로 끄세요 |
 | `Port 5173 is in use, trying another one...` | 프론트엔드가 이미 켜져 있습니다. 새로 뜬 주소(예: 5174)로 열면 백엔드가 그 주소를 허용하지 않아 서버 연결 오류가 납니다. 기존 터미널을 `Ctrl+C`로 끄고 다시 실행하세요 |
 | Windows 방화벽 창이 뜸 | 이 앱은 내 컴퓨터(localhost)에서만 통신하므로 **취소**해도 동작합니다 |
-| `git switch Yoona` 에서 `invalid reference` | `git fetch` 후 다시 `git switch Yoona`를 입력하세요 |
 
 ## Supabase
 
