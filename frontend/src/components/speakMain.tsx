@@ -25,14 +25,9 @@ const relationshipLabels: Record<Relationship, string> = {
 
 // Speech recognition hears one language at a time. Korean is the default because
 // mixed sentences ("나는 하고 싶어요 study") still come through, with English words in Hangul.
-const speechLanguages = [
-  { code: 'ko-KR', label: '한국어' },
-  { code: 'en-US', label: 'English' },
-  { code: 'vi-VN', label: 'Tiếng Việt' },
-  { code: 'zh-CN', label: '中文' },
-  { code: 'ja-JP', label: '日本語' },
-  { code: 'th-TH', label: 'ไทย' },
-] as const;
+// The live browser recognizer hears one language at a time; the recording sent to the AI handles
+// mixed languages. Guess the user's language from the browser so the fallback text is closer.
+const browserSpeechLang = typeof navigator !== 'undefined' && navigator.language ? navigator.language : 'ko-KR';
 
 const closenessLabels: Record<Closeness, string> = {
   stranger: 'Stranger',
@@ -50,7 +45,6 @@ function SpeakMain({ onAnswer, onSave }: SpeakMainProps) {
   const [relationship, setRelationship] = useState<Relationship>('friend_younger');
   const [closeness, setCloseness] = useState<Closeness>('close');
   const [text, setText] = useState('');
-  const [speechLang, setSpeechLang] = useState<string>('ko-KR');
   const [intent, setIntent] = useState<SpeakIntentResponse | null>(null);
   const [rewrite, setRewrite] = useState<SpeakRewriteResponse | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -95,21 +89,18 @@ function SpeakMain({ onAnswer, onSave }: SpeakMainProps) {
     onEnd: (heard) => {
       // Without a recording (no MediaRecorder or mic blocked), send the browser's text.
       if (!usingRecorderRef.current && heard) {
-        setText(heard);
         void requestIntent(heard);
       }
     },
   });
   const isRecording = recorder.isRecording || speech.isListening;
   const canUseVoice = recorder.isSupported || speech.isSupported;
-  // While recording, the input shows the words as they are recognized.
-  const inputValue = isRecording ? speech.transcript : text;
 
   const startRecording = async () => {
     setError(null);
     usingRecorderRef.current = false;
     setIsUsingRecorder(false);
-    if (speech.isSupported) speech.start(speechLang);
+    if (speech.isSupported) speech.start(browserSpeechLang);
     const started = await recorder.start();
     usingRecorderRef.current = started;
     setIsUsingRecorder(started);
@@ -121,7 +112,6 @@ function SpeakMain({ onAnswer, onSave }: SpeakMainProps) {
     if (!usingRecorderRef.current) return; // onEnd sends the browser text instead
     const recording = await recordingPromise;
     const browserText = speech.getText();
-    setText(browserText);
 
     let audio: { data: string; mimeType: string } | undefined;
     if (recording && recording.size > 0) {
@@ -225,36 +215,19 @@ function SpeakMain({ onAnswer, onSave }: SpeakMainProps) {
               <span>{isRecording ? 'STOP' : 'SPEAK'}</span>
             </button>
           </div>
-          <label className="speak-lang">
-            <span>I&apos;m speaking in</span>
-            <select
-              id="speak-lang"
-              value={speechLang}
-              onChange={(event) => setSpeechLang(event.target.value)}
-              disabled={isRecording}
-            >
-              {speechLanguages.map((language) => (
-                <option key={language.code} value={language.code}>{language.label}</option>
-              ))}
-            </select>
-          </label>
-          <p className="hint">
-            {canUseVoice
-              ? 'Mixing languages is OK. Selected settings will tailor the tone automatically.'
-              : 'This browser can’t use the microphone. You can still type below.'}
-          </p>
+          {!canUseVoice && <p className="hint">This browser can’t use the microphone. You can still type below.</p>}
           <form className="speak-text-form" onSubmit={handleSubmit}>
             <label className="speak-text-label" htmlFor="speak-text">
-              {isRecording ? 'Hearing...' : 'Or type what you want to say'}
+              Or type what you want to say
             </label>
             <div className="speak-text-row">
               <input
                 id="speak-text"
-                value={inputValue}
+                value={text}
                 onChange={(event) => setText(event.target.value)}
                 placeholder="e.g. 나는 하고 싶어요 study"
                 autoComplete="off"
-                readOnly={isRecording}
+                disabled={isRecording}
               />
               <button type="submit" disabled={isRecording || !text.trim()}>Go</button>
             </div>

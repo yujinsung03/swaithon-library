@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useFeedbackBook } from './store/feedbackBook';
 
 function App() {
-  const [activeMenu, setActiveMenu] = useState<'speak' | 'listen' | 'learn' | 'writing'>('listen');
+  const [activeMenu, setActiveMenu] = useState<'speak' | 'listen' | 'learn' | 'writing'>('speak');
   const feedbackBook = useFeedbackBook();
 
   return (
