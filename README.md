@@ -43,6 +43,16 @@ GEMINI_API_KEY=여기에_복사한_키       # 무료 (모델별 하루 20번 �
 | Speak 교정, Listen, Writing | gpt-6.1-sol | gemini-3.8-flash → 3.5-flash → 3.5-flash-lite |
 | Speak 음성 인식 | 게이트웨이의 gemini-3.8-flash (gpt-6.1-sol은 음성을 못 받음) | gemini-3.8-flash → … |
 
+**추천 설정 (게이트웨이 키 하나로 GPT + Gemini 같이 쓰기)**: 글은 gpt-6.1-sol, 음성은 Gemini가 맡습니다. 섞어 말한 음성(한국어+일본어 등)은 Gemini가 가장 정확했습니다.
+
+```
+AI_GATEWAY_API_KEY=팀_게이트웨이_키
+GEMINI_API_KEY=팀_게이트웨이_키          # 같은 키
+GEMINI_BASE_URL=https://factchat-cloud.mindlogic.ai/v1/gateway/gemini
+GEMINI_MODELS=gemini-3.8-flash,gemini-3.5-flash-lite
+GEMINI_AUDIO_MODELS=gemini-3.5-flash-lite,gemini-3.8-flash
+```
+
 모델을 바꾸고 싶으면 `AI_GATEWAY_MODELS=`에 쉼표로 적습니다(예: `claude-sonnet-5-5,gpt-6.1-sol`). 나머지 줄은 비워 둬도 됩니다. `backend/.env`는 git에 올라가지 않습니다.
 
 ### 3. 프론트엔드 환경변수

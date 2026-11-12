@@ -1,9 +1,12 @@
 """Thin wrapper around the AI APIs that returns validated Pydantic objects.
 
-Two providers, tried in this order:
-  1. An OpenAI-compatible gateway (AI_GATEWAY_* in .env), e.g. gpt-6.1-sol. Paid, no daily limit.
-  2. Google Gemini with a free AI Studio key (GEMINI_API_KEY). Free, ~20 requests/day per model.
-Either can be left out of .env. When a model fails (rate limit, outage, bad key), the next one answers.
+Two providers:
+  - "gateway": an OpenAI-compatible API (AI_GATEWAY_* in .env), e.g. gpt-6.1-sol.
+  - "gemini": the Gemini API (GEMINI_* in .env). Either Google's own (free AI Studio key, ~20
+    requests/day per model) or a gateway that speaks the Gemini API (set GEMINI_BASE_URL).
+Text tasks try the gateway first, then Gemini. Voice recordings try Gemini first (it handles
+mixed-language speech best), then the gateway. Either provider can be left out of .env.
+When a model fails (rate limit, outage, bad key), the next one answers.
 """
 
 import base64
@@ -60,16 +63,20 @@ def _has_audio(user: Contents) -> bool:
 
 
 def candidates(with_audio: bool = False) -> list[Candidate]:
-    found: list[Candidate] = []
+    gateway: list[Candidate] = []
+    gemini: list[Candidate] = []
     if os.getenv("AI_GATEWAY_API_KEY"):
         if with_audio:
             names = os.getenv("AI_GATEWAY_AUDIO_MODELS") or DEFAULT_GATEWAY_AUDIO_MODELS
         else:
             names = os.getenv("AI_GATEWAY_MODELS") or DEFAULT_GATEWAY_MODELS
-        found += [Candidate("gateway", name) for name in _split(names)]
+        gateway = [Candidate("gateway", name) for name in _split(names)]
     if os.getenv("GEMINI_API_KEY"):
         names = os.getenv("GEMINI_MODELS") or DEFAULT_GEMINI_MODELS
-        found += [Candidate("gemini", name) for name in _split(names)]
+        if with_audio:
+            names = os.getenv("GEMINI_AUDIO_MODELS") or names
+        gemini = [Candidate("gemini", name) for name in _split(names)]
+    found = gemini + gateway if with_audio else gateway + gemini
     if not found:
         raise LLMError("No AI key is set. Add AI_GATEWAY_API_KEY or GEMINI_API_KEY to backend/.env.", 500)
     return found
@@ -90,7 +97,10 @@ _gemini_client: genai.Client | None = None
 def _gemini() -> genai.Client:
     global _gemini_client
     if _gemini_client is None:
-        _gemini_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        base_url = os.getenv("GEMINI_BASE_URL")
+        # Gemini-compatible gateways serve the v1beta API under their own base URL.
+        http_options = types.HttpOptions(base_url=base_url, api_version="v1beta") if base_url else None
+        _gemini_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"], http_options=http_options)
     return _gemini_client
 
 
