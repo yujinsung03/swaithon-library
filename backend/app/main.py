@@ -23,6 +23,8 @@ from .schemas import (  # noqa: E402
     AudioInput,
     AudioIntentLLMOutput,
     IntentLLMOutput,
+    LearnSearchTermsRequest,
+    LearnSearchTermsResponse,
     ListenExplainRequest,
     ListenExplainResponse,
     ListenTranscribeRequest,
@@ -131,6 +133,21 @@ async def listen_transcribe(body: ListenTranscribeRequest) -> ListenTranscribeRe
 async def listen_explain(body: ListenExplainRequest) -> ListenExplainResponse:
     user_message = prompts.listen_user_message(body.koreanText, body.language)
     return await generate_json(prompts.LISTEN_SYSTEM, user_message, ListenExplainResponse)
+
+
+@app.post("/learn/search-terms", response_model=LearnSearchTermsResponse)
+async def learn_search_terms(body: LearnSearchTermsRequest) -> LearnSearchTermsResponse:
+    """Words in other languages that mean the same as the query, for searching the Feedback Book."""
+    query = body.query.strip()
+    result = await generate_json(
+        prompts.SEARCH_TERMS_SYSTEM, prompts.search_terms_user_message(query, body.language), LearnSearchTermsResponse
+    )
+    terms: list[str] = []
+    for term in [query, *result.terms]:
+        term = term.strip()
+        if term and term.lower() not in (t.lower() for t in terms):
+            terms.append(term)
+    return LearnSearchTermsResponse(terms=terms[:12])
 
 
 @app.post("/writing/compose", response_model=WritingComposeResponse)

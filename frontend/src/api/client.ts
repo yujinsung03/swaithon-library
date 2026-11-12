@@ -1,6 +1,8 @@
 import * as mock from './mock';
 import { AppError } from '../i18n/useI18n';
 import type {
+  LearnSearchTermsRequest,
+  LearnSearchTermsResponse,
   ListenExplainRequest,
   ListenExplainResponse,
   ListenTranscribeRequest,
@@ -64,6 +66,10 @@ export function rewriteSpeech(request: SpeakRewriteRequest): Promise<SpeakRewrit
 
 export function transcribeListening(request: ListenTranscribeRequest): Promise<ListenTranscribeResponse> {
   return isMockMode ? mock.transcribeListening(request) : post('/listen/transcribe', request);
+}
+
+export function findSearchTerms(request: LearnSearchTermsRequest): Promise<LearnSearchTermsResponse> {
+  return isMockMode ? Promise.resolve({ terms: [request.query] }) : post('/learn/search-terms', request);
 }
 
 export function explainListening(request: ListenExplainRequest): Promise<ListenExplainResponse> {

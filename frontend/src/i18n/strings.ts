@@ -133,6 +133,13 @@ export interface Strings {
     cancel: string;
     saveMemo: string;
     saving: string;
+    searchPlaceholder: string;
+    clearSearch: string;
+    alsoMatching: string;
+    noResults: string;
+    important: string;
+    star: string;
+    unstar: string;
   };
 }
 
@@ -266,6 +273,13 @@ const en: Strings = {
     cancel: 'Cancel',
     saveMemo: 'Save memo',
     saving: 'Saving...',
+    searchPlaceholder: 'Search in any language',
+    clearSearch: 'Clear search',
+    alsoMatching: 'Also searching:',
+    noResults: 'No entries match your search.',
+    important: 'Important',
+    star: 'Mark as important',
+    unstar: 'Remove from important',
   },
 };
 
@@ -399,6 +413,13 @@ const ja: Strings = {
     cancel: 'キャンセル',
     saveMemo: 'メモを保存',
     saving: '保存中...',
+    searchPlaceholder: 'どの言語でも検索できます',
+    clearSearch: '検索をクリア',
+    alsoMatching: '同じ意味でも検索中:',
+    noResults: '検索に合う記録がありません。',
+    important: '重要',
+    star: '重要にする',
+    unstar: '重要を外す',
   },
 };
 
@@ -532,6 +553,13 @@ const zh: Strings = {
     cancel: '取消',
     saveMemo: '保存备注',
     saving: '保存中...',
+    searchPlaceholder: '可用任何语言搜索',
+    clearSearch: '清除搜索',
+    alsoMatching: '同时搜索:',
+    noResults: '没有符合搜索的记录。',
+    important: '重要',
+    star: '标为重要',
+    unstar: '取消重要',
   },
 };
 
@@ -665,6 +693,13 @@ const vi: Strings = {
     cancel: 'Hủy',
     saveMemo: 'Lưu ghi chú',
     saving: 'Đang lưu...',
+    searchPlaceholder: 'Tìm bằng bất kỳ ngôn ngữ nào',
+    clearSearch: 'Xóa tìm kiếm',
+    alsoMatching: 'Cũng đang tìm:',
+    noResults: 'Không có mục nào khớp.',
+    important: 'Quan trọng',
+    star: 'Đánh dấu quan trọng',
+    unstar: 'Bỏ đánh dấu quan trọng',
   },
 };
 
@@ -798,6 +833,13 @@ const th: Strings = {
     cancel: 'ยกเลิก',
     saveMemo: 'บันทึกโน้ต',
     saving: 'กำลังบันทึก...',
+    searchPlaceholder: 'ค้นหาได้ทุกภาษา',
+    clearSearch: 'ล้างการค้นหา',
+    alsoMatching: 'ค้นหาคำเหล่านี้ด้วย:',
+    noResults: 'ไม่พบรายการที่ตรงกับการค้นหา',
+    important: 'สำคัญ',
+    star: 'ทำเครื่องหมายว่าสำคัญ',
+    unstar: 'เลิกทำเครื่องหมายสำคัญ',
   },
 };
 
@@ -931,6 +973,13 @@ const ru: Strings = {
     cancel: 'Отмена',
     saveMemo: 'Сохранить заметку',
     saving: 'Сохранение...',
+    searchPlaceholder: 'Поиск на любом языке',
+    clearSearch: 'Очистить поиск',
+    alsoMatching: 'Также ищем:',
+    noResults: 'Ничего не найдено.',
+    important: 'Важное',
+    star: 'Отметить как важное',
+    unstar: 'Убрать из важного',
   },
 };
 

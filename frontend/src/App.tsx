@@ -32,6 +32,7 @@ function App() {
           mode={feedbackBook.mode}
           onRemove={(id) => void feedbackBook.removeEntry(id)}
           onUpdateMemo={feedbackBook.updateMemo}
+          onToggleStar={(id, starred) => void feedbackBook.setStarred(id, starred)}
         />
       ) : null}
       {/* Writing stays mounted while hidden, so a message being written (or already written)

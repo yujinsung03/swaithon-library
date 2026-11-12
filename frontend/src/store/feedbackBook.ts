@@ -6,6 +6,8 @@ interface EntryBase {
   id: string;
   createdAt: number;
   memo: string;
+  /** Marked as important (★). */
+  starred?: boolean;
 }
 
 export interface SpeakEntry extends EntryBase {
@@ -117,6 +119,22 @@ export function useFeedbackBook() {
     }
   }, []);
 
+  /** Resolves to true when the star was saved. Updates the screen right away. */
+  const setStarred = useCallback(async (id: string, starred: boolean) => {
+    const entry = entriesRef.current.find((item) => item.id === id);
+    if (!entry) return false;
+    setEntries((current) => current.map((item) => (item.id === id ? { ...item, starred } : item)));
+    try {
+      await feedbackRepository.setStarred({ ...entry, starred });
+      setError(null);
+      return true;
+    } catch (err) {
+      setEntries((current) => current.map((item) => (item.id === id ? { ...item, starred: entry.starred } : item)));
+      setError(`Could not save the star: ${messageOf(err)}`);
+      return false;
+    }
+  }, []);
+
   return {
     entries,
     isLoading,
@@ -125,5 +143,6 @@ export function useFeedbackBook() {
     addEntry,
     removeEntry,
     updateMemo,
+    setStarred,
   };
 }

@@ -131,3 +131,12 @@ class RewriteLLMOutput(BaseModel):
     korean: str
     tone: str
     corrections: list[Correction]
+
+
+class LearnSearchTermsRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=100)
+    language: Language = "en"
+
+
+class LearnSearchTermsResponse(BaseModel):
+    terms: list[str]

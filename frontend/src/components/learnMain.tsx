@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { findSearchTerms } from '../api/client';
 import type { FeedbackEntry, StorageMode } from '../store/feedbackBook';
 import { useI18n } from '../i18n/useI18n';
 import { speakKorean } from '../utils/speakKorean';
+import { entryMatches } from '../utils/searchEntries';
 
 interface LearnMainProps {
   entries: FeedbackEntry[];
@@ -10,23 +12,58 @@ interface LearnMainProps {
   mode: StorageMode;
   onRemove: (id: string) => void;
   onUpdateMemo: (id: string, memo: string) => Promise<boolean>;
+  onToggleStar: (id: string, starred: boolean) => void;
 }
 
-type Filter = 'all' | 'speak' | 'listen';
+type Filter = 'all' | 'speak' | 'listen' | 'starred';
 
-function LearnMain({ entries, isLoading, error, mode, onRemove, onUpdateMemo }: LearnMainProps) {
-  const { t } = useI18n();
+const SEARCH_DELAY_MS = 500;
+
+function LearnMain({ entries, isLoading, error, mode, onRemove, onUpdateMemo, onToggleStar }: LearnMainProps) {
+  const { t, language } = useI18n();
   const [filter, setFilter] = useState<Filter>('all');
+  const [query, setQuery] = useState('');
+  // Words that mean the same as the query in other languages (from the AI), keyed by query.
+  const [extraTerms, setExtraTerms] = useState<{ query: string; terms: string[] } | null>(null);
+
+  const trimmedQuery = query.trim();
+  useEffect(() => {
+    if (!trimmedQuery) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      findSearchTerms({ query: trimmedQuery, language })
+        .then(({ terms }) => {
+          if (!cancelled) setExtraTerms({ query: trimmedQuery, terms });
+        })
+        .catch(() => {
+          // Searching the saved text still works without the extra words.
+        });
+    }, SEARCH_DELAY_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [trimmedQuery, language]);
+
+  const otherTerms = extraTerms?.query === trimmedQuery
+    ? extraTerms.terms.filter((term) => term.toLowerCase() !== trimmedQuery.toLowerCase())
+    : [];
+  const searched = trimmedQuery ? entries.filter((entry) => entryMatches(entry, [trimmedQuery, ...otherTerms])) : entries;
+
   const counts = {
-    all: entries.length,
-    speak: entries.filter((entry) => entry.kind === 'speak').length,
-    listen: entries.filter((entry) => entry.kind === 'listen').length,
+    all: searched.length,
+    speak: searched.filter((entry) => entry.kind === 'speak').length,
+    listen: searched.filter((entry) => entry.kind === 'listen').length,
+    starred: searched.filter((entry) => entry.starred).length,
   };
-  const visible = filter === 'all' ? entries : entries.filter((entry) => entry.kind === filter);
+  const visible = searched.filter((entry) =>
+    filter === 'all' ? true : filter === 'starred' ? entry.starred : entry.kind === filter,
+  );
   const filters: { value: Filter; label: string }[] = [
     { value: 'all', label: t.learn.all },
     { value: 'speak', label: t.learn.speak },
     { value: 'listen', label: t.learn.listen },
+    { value: 'starred', label: `★ ${t.learn.important}` },
   ];
 
   return (
@@ -44,12 +81,37 @@ function LearnMain({ entries, isLoading, error, mode, onRemove, onUpdateMemo }: 
       </div>
 
       {entries.length > 0 && (
-        <div className="learn-filters" role="group" aria-label="Show entries">
+        <div className="learn-search">
+          <span className="learn-search-icon" aria-hidden="true">⌕</span>
+          <input
+            id="learn-search"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t.learn.searchPlaceholder}
+            aria-label={t.learn.searchPlaceholder}
+            autoComplete="off"
+          />
+          {query && (
+            <button className="learn-search-clear" type="button" onClick={() => setQuery('')} aria-label={t.learn.clearSearch}>
+              ×
+            </button>
+          )}
+        </div>
+      )}
+      {otherTerms.length > 0 && (
+        <p className="learn-search-terms">
+          {t.learn.alsoMatching} {otherTerms.join(' · ')}
+        </p>
+      )}
+
+      {entries.length > 0 && (
+        <div className="learn-filters" role="group" aria-label={t.learn.title}>
           {filters.map((item) => (
             <button
               key={item.value}
               type="button"
-              className={`learn-filter${filter === item.value ? ' is-selected' : ''}`}
+              className={`learn-filter${item.value === 'starred' ? ' is-starred-filter' : ''}${filter === item.value ? ' is-selected' : ''}`}
               aria-pressed={filter === item.value}
               onClick={() => setFilter(item.value)}
             >
@@ -69,7 +131,7 @@ function LearnMain({ entries, isLoading, error, mode, onRemove, onUpdateMemo }: 
             <span>{t.learn.emptyBody}</span>
           </div>
         ) : visible.length === 0 ? (
-          <div className="learn-empty"><span>{t.learn.noneOfKind}</span></div>
+          <div className="learn-empty"><span>{trimmedQuery ? t.learn.noResults : t.learn.noneOfKind}</span></div>
         ) : (
           visible.map((entry) => (
             <FeedbackCard
@@ -77,6 +139,7 @@ function LearnMain({ entries, isLoading, error, mode, onRemove, onUpdateMemo }: 
               key={entry.id}
               onRemove={() => onRemove(entry.id)}
               onSaveMemo={(memo) => onUpdateMemo(entry.id, memo)}
+              onToggleStar={() => onToggleStar(entry.id, !entry.starred)}
             />
           ))
         )}
@@ -89,9 +152,10 @@ interface FeedbackCardProps {
   entry: FeedbackEntry;
   onRemove: () => void;
   onSaveMemo: (memo: string) => Promise<boolean>;
+  onToggleStar: () => void;
 }
 
-function FeedbackCard({ entry, onRemove, onSaveMemo }: FeedbackCardProps) {
+function FeedbackCard({ entry, onRemove, onSaveMemo, onToggleStar }: FeedbackCardProps) {
   const { t, language } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [memo, setMemo] = useState(entry.memo);
@@ -111,7 +175,7 @@ function FeedbackCard({ entry, onRemove, onSaveMemo }: FeedbackCardProps) {
   const detailsId = `fb-details-${entry.id}`;
 
   return (
-    <article className={`fb-card fb-card-${entry.kind}${isOpen ? ' is-open' : ''}`}>
+    <article className={`fb-card fb-card-${entry.kind}${isOpen ? ' is-open' : ''}${entry.starred ? ' is-starred' : ''}`}>
       <div className="fb-summary-row">
         <button
           className="fb-summary"
@@ -121,7 +185,7 @@ function FeedbackCard({ entry, onRemove, onSaveMemo }: FeedbackCardProps) {
           onClick={() => setIsOpen((open) => !open)}
         >
           <span className="fb-meta">
-            <span className={`fb-kind fb-kind-${entry.kind}`}>{entry.kind === 'speak' ? 'SPEAK' : 'LISTEN'}</span>
+            <span className={`fb-kind fb-kind-${entry.kind}`}>{entry.kind === 'speak' ? t.nav.speak : t.nav.listen}</span>
             <time className="fb-date">{date}</time>
             <span className="fb-chevron" aria-hidden="true">▾</span>
           </span>
@@ -135,6 +199,17 @@ function FeedbackCard({ entry, onRemove, onSaveMemo }: FeedbackCardProps) {
             </span>
           )}
         </button>
+        <div className="fb-side">
+        <button
+          className={`fb-star${entry.starred ? ' is-on' : ''}`}
+          type="button"
+          onClick={onToggleStar}
+          aria-pressed={!!entry.starred}
+          aria-label={entry.starred ? t.learn.unstar : t.learn.star}
+          title={entry.starred ? t.learn.unstar : t.learn.star}
+        >
+          {entry.starred ? '★' : '☆'}
+        </button>
         <button
           className="fb-play"
           type="button"
@@ -144,6 +219,7 @@ function FeedbackCard({ entry, onRemove, onSaveMemo }: FeedbackCardProps) {
         >
           🔊
         </button>
+        </div>
       </div>
 
       {isOpen && (

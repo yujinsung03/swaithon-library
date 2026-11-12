@@ -105,3 +105,13 @@ export interface WritingComposeResponse {
   englishMeaning: string;
   notes: WritingNote[];
 }
+
+export interface LearnSearchTermsRequest {
+  query: string;
+  language: LanguageCode;
+}
+
+export interface LearnSearchTermsResponse {
+  /** The query plus words that mean the same in Korean, English, and the app language. */
+  terms: string[];
+}

@@ -1978,3 +1978,24 @@ padding-left: 12px;
 /* Cards were light gray on white; on the gray page they become white so they still stand out. */
 .confirmation-sentence-card, .translation-card { background: #fff; border-color: #e2e8f0; }
 .result-footer button { background: #fff; }
+
+/* ---------- Feedback Book: search and stars ---------- */
+.learn-search { position: relative; display: flex; align-items: center; }
+.learn-search input { width: 100%; height: 44px; padding: 0 40px 0 38px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; color: #0f172a; font: inherit; font-size: 14px; }
+.learn-search input::-webkit-search-cancel-button { display: none; }
+.learn-search input:focus { outline: 2px solid #93c5fd; border-color: #2563eb; }
+.learn-search-icon { position: absolute; left: 13px; color: #94a3b8; font-size: 18px; pointer-events: none; }
+.learn-search-clear { position: absolute; right: 8px; width: 28px; height: 28px; border: 0; border-radius: 50%; background: #f1f5f9; color: #64748b; font-size: 16px; cursor: pointer; }
+.learn-search-terms { margin: -10px 0 0; color: #94a3b8; font-size: 12px; line-height: 1.5; }
+.learn-filters { flex-wrap: wrap; }
+.fb-side { flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 12px 0 0; }
+.fb-side .fb-play { margin: 0; }
+.fb-star { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: #cbd5e1; font-size: 20px; line-height: 1; cursor: pointer; }
+.fb-star:hover { color: #f43f5e; background: #fff1f2; }
+.fb-star:focus-visible { outline: 2px solid #fda4af; outline-offset: 1px; }
+.fb-star.is-on { color: #e11d48; }
+.fb-card.is-starred { border-color: #fecdd3; background: #fff1f2; }
+.fb-card.is-starred.is-open { border-color: #fda4af; box-shadow: 0 8px 20px rgb(225 29 72 / 10%); }
+.fb-card.is-starred .fb-list li, .fb-card.is-starred .fb-memo textarea { background: #fff; }
+.fb-card.is-starred .fb-play { border-color: #fecdd3; background: #fff; }
+.learn-filter.is-starred-filter.is-selected { border-color: #e11d48; background: #e11d48; }

@@ -268,3 +268,25 @@ def intent_user_message(text: str, language: str) -> str:
 {app_language_line(language)}
 What the user said: {text}
 """
+
+
+SEARCH_TERMS_SYSTEM = """\
+You help search a language learner's saved notes. The notes contain Korean sentences, the \
+learner's own words (often mixing Korean with another language), translations in the learner's \
+app language, and short explanations.
+
+Given a search query in any language, return search terms that would find the same idea in \
+those notes:
+- The query itself.
+- The Korean equivalents: the dictionary form and its stem without -다 (먹다, 먹), plus common \
+spoken forms (먹어, 먹고) when useful. For nouns, the Korean noun (피자, 도서관).
+- The English equivalent, and the equivalent in the user's app language.
+Return 3 to 10 short terms (one to three words each), no duplicates, no explanations.
+"""
+
+
+def search_terms_user_message(query: str, language: str) -> str:
+    return f"""\
+{app_language_line(language)}
+Search query: {query}
+"""

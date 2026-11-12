@@ -9,6 +9,8 @@ export interface FeedbackRepository {
   add(entry: NewFeedbackEntry): Promise<FeedbackEntry>;
   remove(id: string): Promise<void>;
   updateMemo(id: string, memo: string): Promise<void>;
+  /** Saves entry.starred. */
+  setStarred(entry: FeedbackEntry): Promise<void>;
 }
 
 /* ---------------- localStorage ---------------- */
@@ -56,6 +58,9 @@ const localRepository: FeedbackRepository = {
   async updateMemo(id, memo) {
     writeLocal(readLocal().map((entry) => (entry.id === id ? { ...entry, memo } : entry)));
   },
+  async setStarred({ id, starred }) {
+    writeLocal(readLocal().map((entry) => (entry.id === id ? { ...entry, starred } : entry)));
+  },
 };
 
 /* ---------------- Supabase ---------------- */
@@ -83,14 +88,15 @@ function rowToEntry(row: FeedbackRow): FeedbackEntry {
   } as FeedbackEntry;
 }
 
-function entryToPayload(entry: NewFeedbackEntry): Record<string, unknown> {
-  // Kind-specific fields go into the jsonb payload column.
+function entryToPayload(entry: NewFeedbackEntry & { starred?: boolean }): Record<string, unknown> {
+  // Kind-specific fields (and the star) go into the jsonb payload column, so no table change is needed.
+  const starred = entry.starred ?? false;
   if (entry.kind === 'speak') {
     const { sourceText, intentEnglish, tone, corrections } = entry;
-    return { sourceText, intentEnglish, tone, corrections };
+    return { sourceText, intentEnglish, tone, corrections, starred };
   }
   const { english, expressions } = entry;
-  return { english, expressions };
+  return { english, expressions, starred };
 }
 
 function requireClient() {
@@ -127,6 +133,11 @@ const supabaseRepository: FeedbackRepository = {
   async updateMemo(id, memo) {
     await ensureUserId();
     const { error } = await requireClient().from(TABLE).update({ memo }).eq('id', id);
+    if (error) throw error;
+  },
+  async setStarred(entry) {
+    await ensureUserId();
+    const { error } = await requireClient().from(TABLE).update({ payload: entryToPayload(entry) }).eq('id', entry.id);
     if (error) throw error;
   },
 };
