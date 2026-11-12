@@ -10,19 +10,52 @@ interface LearnMainProps {
   onUpdateMemo: (id: string, memo: string) => Promise<boolean>;
 }
 
+type Filter = 'all' | 'speak' | 'listen';
+
 function LearnMain({ entries, isLoading, error, mode, onRemove, onUpdateMemo }: LearnMainProps) {
+  const [filter, setFilter] = useState<Filter>('all');
+  const counts = {
+    all: entries.length,
+    speak: entries.filter((entry) => entry.kind === 'speak').length,
+    listen: entries.filter((entry) => entry.kind === 'listen').length,
+  };
+  const visible = filter === 'all' ? entries : entries.filter((entry) => entry.kind === filter);
+  const filters: { value: Filter; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'speak', label: 'Speak' },
+    { value: 'listen', label: 'Listen' },
+  ];
+
   return (
     <div className="learn-page">
       <header className="learn-header">
-        <div className="learn-brand"><span className="learn-status-dot" />FEEDBACK BOOK</div>
-        <p>
-          Corrections and expressions saved from Speak and Listen
-          {entries.length > 0 && ` · ${entries.length}`}
-        </p>
+        <div className="learn-brand"><span className="learn-status-dot" />LEARN</div>
         <span className={`fb-mode fb-mode-${mode}`}>
-          {mode === 'supabase' ? '☁ Synced to your account' : '● Saved on this device only'}
+          {mode === 'supabase' ? '☁ Synced' : '● This device only'}
         </span>
       </header>
+
+      <div className="learn-intro">
+        <h1>Feedback Book</h1>
+        <p>Sentences and expressions you saved from Speak and Listen.</p>
+      </div>
+
+      {entries.length > 0 && (
+        <div className="learn-filters" role="group" aria-label="Show entries">
+          {filters.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              className={`learn-filter${filter === item.value ? ' is-selected' : ''}`}
+              aria-pressed={filter === item.value}
+              onClick={() => setFilter(item.value)}
+            >
+              {item.label} <span>{counts[item.value]}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <main className="learn-content">
         {error && <p className="fb-error" role="alert">{error}</p>}
         {isLoading ? (
@@ -30,10 +63,12 @@ function LearnMain({ entries, isLoading, error, mode, onRemove, onUpdateMemo }: 
         ) : entries.length === 0 ? (
           <div className="learn-empty">
             <strong>Nothing saved yet</strong>
-            <span>Save a correction in Speak, or confirm a sentence in Listen, to start your Feedback Book.</span>
+            <span>Save a correction in Speak, or explain a sentence in Listen, to start your Feedback Book.</span>
           </div>
+        ) : visible.length === 0 ? (
+          <div className="learn-empty"><span>No {filter === 'speak' ? 'Speak' : 'Listen'} entries yet.</span></div>
         ) : (
-          entries.map((entry) => (
+          visible.map((entry) => (
             <FeedbackCard
               entry={entry}
               key={entry.id}
@@ -54,6 +89,7 @@ interface FeedbackCardProps {
 }
 
 function FeedbackCard({ entry, onRemove, onSaveMemo }: FeedbackCardProps) {
+  const [isOpen, setIsOpen] = useState(false);
   const [memo, setMemo] = useState(entry.memo);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isSavingMemo, setIsSavingMemo] = useState(false);
@@ -65,80 +101,106 @@ function FeedbackCard({ entry, onRemove, onSaveMemo }: FeedbackCardProps) {
   };
   const isMemoDirty = memo !== entry.memo;
   const date = new Date(entry.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const meaning = entry.kind === 'speak' ? entry.intentEnglish : entry.english;
+  const detailCount = entry.kind === 'speak' ? entry.corrections.length : entry.expressions.length;
+  const detailLabel = entry.kind === 'speak' ? 'correction' : 'expression';
+  const detailsId = `fb-details-${entry.id}`;
 
   return (
-    <article className="learn-card fb-card">
-      <div className="learn-card-heading">
-        <span className={`fb-kind fb-kind-${entry.kind}`}>{entry.kind === 'speak' ? 'SPEAK' : 'LISTEN'}</span>
-        <time className="fb-date">{date}</time>
-      </div>
+    <article className={`fb-card fb-card-${entry.kind}${isOpen ? ' is-open' : ''}`}>
+      <button
+        className="fb-summary"
+        type="button"
+        aria-expanded={isOpen}
+        aria-controls={detailsId}
+        onClick={() => setIsOpen((open) => !open)}
+      >
+        <span className="fb-meta">
+          <span className={`fb-kind fb-kind-${entry.kind}`}>{entry.kind === 'speak' ? 'SPEAK' : 'LISTEN'}</span>
+          <time className="fb-date">{date}</time>
+          <span className="fb-chevron" aria-hidden="true">▾</span>
+        </span>
+        <span className="fb-korean">{entry.korean}</span>
+        <span className="fb-meaning">{meaning}</span>
+        {!isOpen && (
+          <span className="fb-peek">
+            {detailCount > 0 && `${detailCount} ${detailLabel}${detailCount > 1 ? 's' : ''}`}
+            {detailCount > 0 && entry.memo && ' · '}
+            {entry.memo && `📝 ${entry.memo}`}
+          </span>
+        )}
+      </button>
 
-      <h2>{entry.korean}</h2>
-
-      {entry.kind === 'speak' ? (
-        <>
-          <p className="fb-sub">
-            You said “{entry.sourceText}” · <em>{entry.intentEnglish}</em>
-          </p>
-          <span className="fb-tone">{entry.tone}</span>
-          {entry.corrections.length > 0 && (
-            <ul className="fb-list">
-              {entry.corrections.map((correction, index) => (
-                <li key={index}>
-                  <div className="speak-correction-change">
-                    <s>{correction.before}</s>
-                    <span aria-hidden="true">→</span>
-                    <strong>{correction.after}</strong>
-                  </div>
-                  <p>{correction.reason}</p>
-                </li>
-              ))}
-            </ul>
+      {isOpen && (
+        <div className="fb-details" id={detailsId}>
+          {entry.kind === 'speak' ? (
+            <>
+              <p className="fb-said">
+                <span>You said</span>“{entry.sourceText}”
+              </p>
+              {entry.tone && <span className="fb-tone">{entry.tone}</span>}
+              {entry.corrections.length > 0 && (
+                <ul className="fb-list">
+                  {entry.corrections.map((correction, index) => (
+                    <li key={index}>
+                      <div className="speak-correction-change">
+                        <s>{correction.before}</s>
+                        <span aria-hidden="true">→</span>
+                        <strong>{correction.after}</strong>
+                      </div>
+                      <p>{correction.reason}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : (
+            entry.expressions.length > 0 && (
+              <ul className="fb-list">
+                {entry.expressions.map((expression) => (
+                  <li key={expression.word}>
+                    <div className="speak-correction-change">
+                      <strong>{expression.word}</strong>
+                      <span className="fb-tag">{expression.tag}</span>
+                    </div>
+                    <p>{expression.explanation}</p>
+                  </li>
+                ))}
+              </ul>
+            )
           )}
-        </>
-      ) : (
-        <>
-          <p className="fb-sub"><em>{entry.english}</em></p>
-          <ul className="fb-list">
-            {entry.expressions.map((expression) => (
-              <li key={expression.word}>
-                <div className="speak-correction-change">
-                  <strong>{expression.word}</strong>
-                  <span className="fb-tag">{expression.tag}</span>
-                </div>
-                <p>{expression.explanation}</p>
-              </li>
-            ))}
-          </ul>
-        </>
+
+          <label className="fb-memo">
+            <span>My memo</span>
+            <textarea
+              id={`fb-memo-${entry.id}`}
+              value={memo}
+              onChange={(event) => setMemo(event.target.value)}
+              placeholder="Add a note to remember this..."
+              rows={2}
+            />
+          </label>
+
+          <div className="fb-actions">
+            {isConfirmingDelete ? (
+              <>
+                <span className="fb-confirm-text">Delete this entry?</span>
+                <button className="fb-button" type="button" onClick={() => setIsConfirmingDelete(false)}>Cancel</button>
+                <button className="fb-button fb-button-danger" type="button" onClick={onRemove}>Delete</button>
+              </>
+            ) : (
+              <>
+                <button className="fb-button fb-button-quiet" type="button" onClick={() => setIsConfirmingDelete(true)}>Delete</button>
+                {isMemoDirty && (
+                  <button className="fb-button fb-button-primary" type="button" onClick={() => void saveMemo()} disabled={isSavingMemo}>
+                    {isSavingMemo ? 'Saving...' : 'Save memo'}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       )}
-
-      <label className="fb-memo">
-        <span>My memo</span>
-        <textarea
-          value={memo}
-          onChange={(event) => setMemo(event.target.value)}
-          placeholder="Add a note to remember this..."
-          rows={2}
-        />
-      </label>
-
-      <div className="fb-actions">
-        {isMemoDirty && (
-          <button className="fb-button fb-button-primary" type="button" onClick={() => void saveMemo()} disabled={isSavingMemo}>
-            {isSavingMemo ? 'Saving...' : 'Save memo'}
-          </button>
-        )}
-        {isConfirmingDelete ? (
-          <>
-            <span className="fb-confirm-text">Delete this entry?</span>
-            <button className="fb-button" type="button" onClick={() => setIsConfirmingDelete(false)}>Cancel</button>
-            <button className="fb-button fb-button-danger" type="button" onClick={onRemove}>Delete</button>
-          </>
-        ) : (
-          <button className="fb-button" type="button" onClick={() => setIsConfirmingDelete(true)}>Delete</button>
-        )}
-      </div>
     </article>
   );
 }
