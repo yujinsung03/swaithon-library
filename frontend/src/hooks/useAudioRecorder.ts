@@ -1,3 +1,4 @@
+import type { ErrorKey } from '../i18n/strings';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 // Records the microphone with MediaRecorder so the audio can be sent to the AI.
@@ -10,7 +11,7 @@ function isRecorderSupported() {
 
 export function useAudioRecorder() {
   const [isRecording, setIsRecording] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ErrorKey | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const stopResolverRef = useRef<((blob: Blob | null) => void) | null>(null);
@@ -58,8 +59,8 @@ export function useAudioRecorder() {
       const denied = err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'SecurityError');
       setError(
         denied
-          ? 'Microphone access is blocked. Allow the microphone in your browser’s address bar, then try again.'
-          : 'Could not start the microphone. Check that one is connected.',
+          ? 'micBlocked'
+          : 'micNotFound',
       );
       return false;
     }

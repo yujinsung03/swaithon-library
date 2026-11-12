@@ -1,37 +1,48 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import ListenCheck from './listenCheck';
 import ListenConfirm from './listenConfirm';
 import ListenLoading from './listenLoading';
-import { explainListening } from '../api/client';
+import { explainListening, transcribeListening } from '../api/client';
 import type { ListenExplainResponse } from '../api/types';
+import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { recordingToWavBase64 } from '../utils/wav';
+import { errorKeyOf, useI18n } from '../i18n/useI18n';
+import type { ErrorKey } from '../i18n/strings';
 import type { NewFeedbackEntry } from '../store/feedbackBook';
 
-type Page = 'recording' | 'check' | 'loading' | 'result';
+type Page = 'recording' | 'transcribing' | 'check' | 'loading' | 'result';
 
 function ListenMain({ onSave }: { onSave: (entry: NewFeedbackEntry) => Promise<boolean> }) {
+  const { t, language } = useI18n();
   const [page, setPage] = useState<Page>('recording');
   const [heard, setHeard] = useState('');
   const [typed, setTyped] = useState('');
   const [result, setResult] = useState<ListenExplainResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ErrorKey | null>(null);
 
+  // The recording is transcribed by the AI (accurate, adds "?" for questions). The browser's own
+  // recognizer runs alongside only as a hint and a fallback; its text is not shown.
+  const recorder = useAudioRecorder();
+  const usingRecorderRef = useRef(false);
   // The other person speaks Korean, so Listen always recognizes Korean.
   const speech = useSpeechRecognition({
     onEnd: (text) => {
-      if (text) {
+      // Without a recording (no MediaRecorder or mic blocked), use the browser's text.
+      if (!usingRecorderRef.current && text) {
         setHeard(text);
         setPage('check');
       }
     },
   });
-  const isRecording = speech.isListening;
+  const isRecording = recorder.isRecording || speech.isListening;
+  const canUseVoice = recorder.isSupported || speech.isSupported;
 
   const explain = async () => {
     setError(null);
     setPage('loading');
     try {
-      const explained = await explainListening({ koreanText: heard });
+      const explained = await explainListening({ koreanText: heard, language });
       setResult(explained);
       setPage('result');
       void onSave({
@@ -41,24 +52,60 @@ function ListenMain({ onSave }: { onSave: (entry: NewFeedbackEntry) => Promise<b
         expressions: explained.expressions.map(({ word, tag, explanation }) => ({ word, tag, explanation })),
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setError(errorKeyOf(err));
       setPage('check');
     }
   };
 
   const handleRetry = () => {
     speech.cancel();
+    recorder.cancel();
     setError(null);
     setPage('recording');
   };
 
-  const toggleRecording = () => {
-    if (isRecording) {
-      speech.stop(); // onEnd moves to the check screen
-    } else {
-      setError(null);
-      speech.start('ko-KR');
+  const startRecording = async () => {
+    setError(null);
+    usingRecorderRef.current = false;
+    if (speech.isSupported) speech.start('ko-KR');
+    usingRecorderRef.current = await recorder.start();
+  };
+
+  const stopAndTranscribe = async () => {
+    const recordingPromise = recorder.stop();
+    speech.stop();
+    if (!usingRecorderRef.current) return; // onEnd moves to the check screen instead
+    const recording = await recordingPromise;
+    const hint = speech.getText();
+    if (!recording || recording.size === 0) {
+      if (hint) {
+        setHeard(hint);
+        setPage('check');
+      } else {
+        setError('noSpeech');
+      }
+      return;
     }
+    setPage('transcribing');
+    try {
+      const audio = { data: await recordingToWavBase64(recording), mimeType: 'audio/wav' };
+      const { korean } = await transcribeListening({ audio, hint });
+      setHeard(korean);
+      setPage('check');
+    } catch (err) {
+      if (hint) {
+        // Fall back to what the browser heard.
+        setHeard(hint);
+        setPage('check');
+      } else {
+        setError(errorKeyOf(err));
+        setPage('recording');
+      }
+    }
+  };
+
+  const toggleRecording = () => {
+    void (isRecording ? stopAndTranscribe() : startRecording());
   };
 
   const handleTyped = (event: FormEvent<HTMLFormElement>) => {
@@ -70,7 +117,11 @@ function ListenMain({ onSave }: { onSave: (entry: NewFeedbackEntry) => Promise<b
   };
 
   if (page === 'check') {
-    return <ListenCheck text={heard} error={error} onNo={handleRetry} onYes={() => void explain()} />;
+    return <ListenCheck text={heard} error={error && t.errors[error]} onNo={handleRetry} onYes={() => void explain()} />;
+  }
+
+  if (page === 'transcribing') {
+    return <ListenLoading title="받아쓰는 중..." subtitle="들은 말을 정확하게 글로 옮기고 있어요" />;
   }
 
   if (page === 'loading') {
@@ -111,33 +162,33 @@ function ListenMain({ onSave }: { onSave: (entry: NewFeedbackEntry) => Promise<b
             className={`listen-microphone${isRecording ? ' is-recording' : ''}`}
             type="button"
             onClick={toggleRecording}
-            disabled={!speech.isSupported}
+            disabled={!canUseVoice}
             aria-label={isRecording ? '음성 인식 중지' : '음성 인식 시작'}
           >
             <span className="listen-microphone-icon">{isRecording ? '■' : '●'}</span>
             <span>{isRecording ? '중지' : '말하기'}</span>
           </button>
         </div>
-        {(error ?? speech.error) && <p className="speak-error" role="alert">{error ?? speech.error}</p>}
+        {(error ?? recorder.error) && <p className="speak-error" role="alert">{t.errors[(error ?? recorder.error)!]}</p>}
         <form className="speak-text-form listen-text-form" onSubmit={handleTyped}>
           <label className="speak-text-label" htmlFor="listen-text">
-            {isRecording ? 'Hearing...' : 'Or type what you heard'}
+            {t.listen.typeLabel}
           </label>
           <div className="speak-text-row">
             <input
               id="listen-text"
-              value={isRecording ? speech.transcript : typed}
+              value={typed}
               onChange={(event) => setTyped(event.target.value)}
               placeholder="예: 콩나물국이 시원하다"
               autoComplete="off"
-              readOnly={isRecording}
+              disabled={isRecording}
             />
-            <button type="submit" disabled={isRecording || !typed.trim()}>Go</button>
+            <button type="submit" disabled={isRecording || !typed.trim()}>{t.common.go}</button>
           </div>
         </form>
       </main>
       <footer className="listen-footer">
-        {speech.isSupported
+        {canUseVoice
           ? '버튼을 누르고 상대방이 말하게 하세요. 다 들으면 중지를 누르세요.'
           : '음성 인식은 Chrome, Edge, Safari에서 됩니다. 아래에 입력해도 돼요.'}
       </footer>

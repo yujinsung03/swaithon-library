@@ -1,4 +1,5 @@
 import type { SpeakIntentResponse } from '../api/types';
+import { useI18n } from '../i18n/useI18n';
 
 interface SpeakCheckProps {
   intent: SpeakIntentResponse;
@@ -8,22 +9,23 @@ interface SpeakCheckProps {
 }
 
 function SpeakCheck({ intent, error, onNo, onYes }: SpeakCheckProps) {
+  const { t } = useI18n();
   return (
     <div className="confirmation-page">
       <header className="confirmation-header">
         <div className="confirmation-brand">
           <span className="confirmation-status-dot" />
-          <span>Check your meaning</span>
+          <span>{t.check.brand}</span>
         </div>
       </header>
 
       <main className="confirmation-content">
         <section>
-          <p className="confirmation-label">Is this what you&apos;re trying to say?</p>
+          <p className="confirmation-label">{t.check.question}</p>
           <div className="confirmation-sentence-card">
             <h1>{intent.intentEnglish}</h1>
           </div>
-          <p className="confirmation-source">You said: “{intent.sourceText}”</p>
+          <p className="confirmation-source">{t.check.youSaid}: “{intent.sourceText}”</p>
           {error && <p className="speak-error" role="alert">{error}</p>}
         </section>
 
@@ -31,18 +33,18 @@ function SpeakCheck({ intent, error, onNo, onYes }: SpeakCheckProps) {
           <button type="button" className="confirmation-no-button" onClick={onNo}>
             <span className="confirmation-no-main">
               <span aria-hidden="true">×</span>
-              <span>NO</span>
+              <span>{t.check.no}</span>
             </span>
-            <span className="confirmation-no-sub">Edit or say again</span>
+            <span className="confirmation-no-sub">{t.check.noSub}</span>
           </button>
           <button type="button" className="confirmation-yes-button" onClick={onYes}>
             <span aria-hidden="true">✓</span>
-            YES
+            {t.check.yes}
           </button>
         </div>
       </main>
 
-      <footer className="confirmation-footer">Confirm to get natural Korean</footer>
+      <footer className="confirmation-footer">{t.check.footer}</footer>
     </div>
   );
 }

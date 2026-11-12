@@ -1735,7 +1735,7 @@ padding-left: 12px;
   bottom:0;
   z-index:100;
   display:grid;
-  grid-template-columns:repeat(4,1fr);
+  grid-template-columns:repeat(5,1fr);
   width:min(390px,100%);
   height:68px;
   padding:8px 10px 10px;
@@ -1832,6 +1832,12 @@ padding-left: 12px;
 
 .fb-card { border: 1px solid #e2e8f0; border-radius: 18px; background: #fff; overflow: hidden; }
 .fb-card.is-open { border-color: #cbd5e1; box-shadow: 0 8px 20px rgb(15 23 42 / 6%); }
+.fb-summary-row { display: flex; align-items: flex-start; }
+.fb-summary-row .fb-summary { flex: 1; min-width: 0; }
+.fb-play { flex: none; display: grid; place-items: center; width: 38px; height: 38px; margin: 34px 12px 0 -6px; border: 1px solid #dbeafe; border-radius: 50%; background: #eff6ff; font-size: 16px; cursor: pointer; }
+.fb-play:hover { background: #dbeafe; }
+.fb-play:active { transform: scale(.94); }
+.fb-play:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
 .fb-summary { display: grid; gap: 6px; width: 100%; padding: 14px 16px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .fb-summary:focus-visible { outline: 2px solid #93c5fd; outline-offset: -2px; border-radius: 18px; }
 .fb-meta { display: flex; align-items: center; gap: 8px; }
@@ -1913,3 +1919,62 @@ padding-left: 12px;
 @keyframes writing-blink { to { visibility: hidden; } }
 @keyframes writing-pulse { 50% { box-shadow: 0 0 0 6px #ede9fe; } }
 @media (prefers-reduced-motion: reduce) { .writing-caret, .writing-status-dot.is-live { animation: none; } }
+
+/* ---------- Language ---------- */
+.bottom-navigation .language-nav-button { position: relative; color: #475569; }
+.bottom-navigation .language-nav-button .language-nav-icon { display: grid; place-items: center; width: 34px; height: 34px; margin-top: -14px; border: 1px solid #e2e8f0; border-radius: 50%; background: #fff; font-size: 17px; box-shadow: 0 4px 12px rgb(15 23 42 / 10%); }
+.bottom-navigation .language-nav-button:focus-visible .language-nav-icon { outline: 2px solid #93c5fd; outline-offset: 2px; }
+.language-backdrop { position: fixed; inset: 0; z-index: 200; display: flex; align-items: flex-end; justify-content: center; padding: 0 max(16px, env(safe-area-inset-right, 0px)) calc(84px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); background: rgb(15 23 42 / 35%); }
+.language-dialog { display: grid; gap: 12px; width: min(358px, 100%); max-height: calc(100dvh - 120px); overflow-y: auto; padding: 18px; border-radius: 20px; background: #fff; color: #0f172a; box-shadow: 0 20px 40px rgb(15 23 42 / 25%); font-family: Arial, sans-serif; }
+.language-dialog-heading { display: flex; align-items: center; justify-content: space-between; }
+.language-dialog-heading h2 { margin: 0; font-size: 17px; }
+.language-close { width: 32px; height: 32px; border: 0; border-radius: 50%; background: #f1f5f9; color: #475569; font-size: 18px; cursor: pointer; }
+.language-dialog-description { margin: 0; color: #64748b; font-size: 12px; line-height: 1.5; }
+.language-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.language-option { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; color: #0f172a; font: inherit; text-align: left; cursor: pointer; }
+.language-option:hover { border-color: #cbd5e1; }
+.language-option:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; }
+.language-option.is-selected { border-color: #2563eb; background: #eff6ff; }
+.language-native { font-size: 15px; font-weight: 700; }
+.language-english { color: #94a3b8; font-size: 12px; }
+.language-check { margin-left: auto; color: #2563eb; font-weight: 800; }
+
+/* ---------- Shared top bar for the four main tabs ----------
+   Same page padding, background, and brand line (dot + label) on Speak, Listen, Learn, Writing. */
+.assistant-page, .listen-page, .learn-page, .writing-page {
+  padding-top: 20px;
+  padding-right: 20px;
+  padding-left: 20px;
+  background: #f8fafc;
+}
+.assistant-header, .listen-header, .learn-header, .writing-header { padding: 0; }
+.writing-header > div { flex: 1; min-width: 0; }
+.assistant-brand, .listen-brand, .learn-brand, .writing-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.status-dot, .listen-status-dot, .learn-status-dot, .writing-status-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px var(--dot-ring);
+}
+.status-dot { --dot-ring: #d1fae5; }
+.listen-status-dot { --dot-ring: #dbeafe; }
+.learn-status-dot { --dot-ring: #d1fae5; }
+.writing-status-dot { --dot-ring: #ede9fe; }
+.writing-header p { margin-top: 2px; }
+
+/* ---------- Follow-up screens (check, loading, result) share the main tabs' background ---------- */
+.loading-page, .confirmation-page, .result-page, .translation-page { background: #f8fafc; }
+/* Cards were light gray on white; on the gray page they become white so they still stand out. */
+.confirmation-sentence-card, .translation-card { background: #fff; border-color: #e2e8f0; }
+.result-footer button { background: #fff; }

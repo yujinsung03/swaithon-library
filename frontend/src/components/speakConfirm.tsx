@@ -1,12 +1,8 @@
 import type { SpeakRewriteResponse } from '../api/types';
 import type { SaveState } from './speakMain';
+import { useI18n } from '../i18n/useI18n';
+import { speakKorean } from '../utils/speakKorean';
 
-const saveLabels: Record<SaveState, string> = {
-  idle: '◆ Save to Feedback Book',
-  saving: 'Saving...',
-  saved: '✓ Saved to Feedback Book',
-  error: '⚠ Could not save. Tap to retry',
-};
 
 interface SpeakConfirmProps {
   result: SpeakRewriteResponse;
@@ -18,38 +14,39 @@ interface SpeakConfirmProps {
 }
 
 function SpeakConfirm({ result, settingsLabel, saveState, onSave, onAnswer, onSayMore }: SpeakConfirmProps) {
-  const playAudio = () => {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(result.korean);
-    utterance.lang = 'ko-KR';
-    window.speechSynthesis.speak(utterance);
+  const { t } = useI18n();
+  const saveLabels: Record<SaveState, string> = {
+    idle: t.result.save,
+    saving: t.result.saving,
+    saved: t.result.saved,
+    error: t.result.saveError,
   };
+  const playAudio = () => speakKorean(result.korean);
 
   return (
     <div className="translation-page">
       <header className="translation-header">
         <div className="translation-brand">
           <span className="translation-status-dot" />
-          <span>Say it like this</span>
+          <span>{t.result.brand}</span>
         </div>
       </header>
 
       <main className="translation-content speak-result-content">
         <section className="translation-section">
-          <p>Natural Korean for you</p>
+          <p>{t.result.naturalKorean}</p>
           <div className="translation-card">
             <h1>{result.korean}</h1>
             <span>{result.tone} · {settingsLabel}</span>
-            <button className="speak-play-button" type="button" onClick={playAudio} aria-label="Play pronunciation">
-              🔊 Listen
+            <button className="speak-play-button" type="button" onClick={playAudio} aria-label={t.result.playAria}>
+              {t.result.listenButton}
             </button>
           </div>
         </section>
 
         {result.corrections.length > 0 && (
           <section className="speak-corrections">
-            <h2>What changed &amp; why</h2>
+            <h2>{t.result.whatChanged}</h2>
             <ol>
               {result.corrections.map((correction, index) => (
                 <li key={index}>
@@ -80,16 +77,16 @@ function SpeakConfirm({ result, settingsLabel, saveState, onSave, onAnswer, onSa
           <button className="answer-button" type="button" onClick={onAnswer}>
             <span className="answer-main">
               <span aria-hidden="true">●</span>
-              <strong>답하기</strong>
+              <strong>{t.result.reply}</strong>
             </span>
-            <small>Listen to reply</small>
+            <small>{t.result.replySub}</small>
           </button>
           <button className="say-more-button" type="button" onClick={onSayMore}>
             <span className="answer-main">
               <span aria-hidden="true">↻</span>
-              <strong>Say more</strong>
+              <strong>{t.result.sayMore}</strong>
             </span>
-            <small>Speak again</small>
+            <small>{t.result.sayMoreSub}</small>
           </button>
         </div>
       </main>

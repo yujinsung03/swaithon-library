@@ -1,15 +1,18 @@
+import { useI18n } from '../i18n/useI18n';
+
 interface SpeakLoadingProps {
   title: string;
   subtitle: string;
 }
 
 function SpeakLoading({ title, subtitle }: SpeakLoadingProps) {
+  const { t } = useI18n();
   return (
     <div className="loading-page">
       <header className="loading-header">
         <div className="loading-brand">
           <span className="loading-status-dot" />
-          <span>Processing</span>
+          <span>{t.common.processing}</span>
         </div>
       </header>
 
@@ -23,7 +26,7 @@ function SpeakLoading({ title, subtitle }: SpeakLoadingProps) {
         </div>
       </main>
 
-      <footer className="loading-footer">This usually takes a few seconds</footer>
+      <footer className="loading-footer">{t.common.fewSeconds}</footer>
     </div>
   );
 }

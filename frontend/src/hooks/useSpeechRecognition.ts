@@ -1,3 +1,4 @@
+import type { ErrorKey } from '../i18n/strings';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 // Browser speech-to-text (Web Speech API). Works in Chrome, Edge and Safari; not in Firefox.
@@ -28,12 +29,13 @@ function getRecognitionConstructor(): RecognitionConstructor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-const errorMessages: Record<string, string> = {
-  'not-allowed': 'Microphone access is blocked. Allow the microphone in your browser’s address bar, then try again.',
-  'service-not-allowed': 'Microphone access is blocked. Allow the microphone in your browser’s address bar, then try again.',
-  'no-speech': 'I didn’t hear anything. Tap the mic and speak again.',
-  'audio-capture': 'No microphone was found. Check that one is connected.',
-  network: 'Speech recognition needs an internet connection.',
+// Errors are returned as keys; the screen shows them in the app language (see i18n/strings.ts).
+const errorKeys: Record<string, ErrorKey> = {
+  'not-allowed': 'micBlocked',
+  'service-not-allowed': 'micBlocked',
+  'no-speech': 'noSpeech',
+  'audio-capture': 'micNotFound',
+  network: 'network',
 };
 
 interface Options {
@@ -44,7 +46,7 @@ interface Options {
 export function useSpeechRecognition({ onEnd }: Options = {}) {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ErrorKey | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   // Everything heard so far (final + still-interim words). Chrome sometimes ends
   // without finalizing the last words, so this is what we hand to onEnd.
@@ -62,7 +64,7 @@ export function useSpeechRecognition({ onEnd }: Options = {}) {
   const start = useCallback((lang: string) => {
     const Recognition = getRecognitionConstructor();
     if (!Recognition) {
-      setError('This browser can’t recognize speech. Use Chrome, Edge or Safari, or type instead.');
+      setError('unsupported');
       return;
     }
     recognitionRef.current?.abort();
@@ -90,7 +92,7 @@ export function useSpeechRecognition({ onEnd }: Options = {}) {
 
     recognition.onerror = (event) => {
       if (event.error === 'aborted') return;
-      setError(errorMessages[event.error] ?? `Speech recognition stopped (${event.error}). Try again.`);
+      setError(errorKeys[event.error] ?? 'micStartFailed');
     };
 
     recognition.onend = () => {
@@ -105,7 +107,7 @@ export function useSpeechRecognition({ onEnd }: Options = {}) {
       recognition.start();
     } catch {
       setIsListening(false);
-      setError('Could not start the microphone. Try again.');
+      setError('micStartFailed');
     }
   }, []);
 

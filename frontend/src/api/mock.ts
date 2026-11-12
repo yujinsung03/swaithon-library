@@ -5,6 +5,8 @@ import type {
   Closeness,
   ListenExplainRequest,
   ListenExplainResponse,
+  ListenTranscribeRequest,
+  ListenTranscribeResponse,
   Correction,
   Relationship,
   SpeakIntentRequest,
@@ -141,6 +143,11 @@ export async function rewriteSpeech({
     tone: toneLabels[key],
     corrections: example.baseCorrections(key, korean),
   };
+}
+
+export async function transcribeListening({ hint }: ListenTranscribeRequest): Promise<ListenTranscribeResponse> {
+  await wait(600);
+  return { korean: hint || '콩나물국이 시원하다' };
 }
 
 export async function explainListening({ koreanText }: ListenExplainRequest): Promise<ListenExplainResponse> {

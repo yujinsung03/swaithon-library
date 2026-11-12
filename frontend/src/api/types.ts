@@ -1,3 +1,5 @@
+import type { LanguageCode } from '../i18n/strings';
+
 // Shared request/response shapes between the frontend and the (future) backend.
 // The FastAPI server should return exactly these JSON shapes.
 
@@ -10,6 +12,8 @@ export interface SpeakIntentRequest {
   sourceText: string;
   /** The recording (base64 WAV). When sent, the AI's own transcript replaces sourceText. */
   audio?: { data: string; mimeType: string };
+  /** App language: explanations come back in it. */
+  language: LanguageCode;
 }
 
 export interface SpeakIntentResponse {
@@ -23,6 +27,8 @@ export interface SpeakRewriteRequest {
   intentEnglish: string;
   relationship: Relationship;
   closeness: Closeness;
+  /** App language: explanations come back in it. */
+  language: LanguageCode;
 }
 
 export interface Correction {
@@ -40,8 +46,20 @@ export interface SpeakRewriteResponse {
 }
 
 /** POST /listen/explain — what did the Korean speaker mean? */
+export interface ListenTranscribeRequest {
+  audio: { data: string; mimeType: string };
+  /** What the browser heard live (may be wrong). */
+  hint: string;
+}
+
+export interface ListenTranscribeResponse {
+  korean: string;
+}
+
 export interface ListenExplainRequest {
   koreanText: string;
+  /** App language: explanations come back in it. */
+  language: LanguageCode;
 }
 
 export interface ListenExpression {
@@ -70,6 +88,8 @@ export interface WritingComposeRequest {
   situation: WritingSituation;
   recipient: string;
   intent: string;
+  /** App language: explanations come back in it. */
+  language: LanguageCode;
 }
 
 export interface WritingNote {

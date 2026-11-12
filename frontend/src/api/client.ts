@@ -1,7 +1,10 @@
 import * as mock from './mock';
+import { AppError } from '../i18n/useI18n';
 import type {
   ListenExplainRequest,
   ListenExplainResponse,
+  ListenTranscribeRequest,
+  ListenTranscribeResponse,
   SpeakIntentRequest,
   SpeakIntentResponse,
   SpeakRewriteRequest,
@@ -16,26 +19,33 @@ const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.repl
 
 export const isMockMode = !BASE_URL;
 
-function postRequest(path: string, body: unknown): Promise<Response> {
-  return fetch(`${BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+async function postRequest(path: string, body: unknown): Promise<Response> {
+  try {
+    return await fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new AppError('connection'); // server not running or no internet
+  }
 }
 
-/** Turns a failed response into an Error with the backend's readable { detail } message. */
-async function errorFrom(response: Response, path: string): Promise<Error> {
-  let detail = '';
+/** Turns a failed response into an error the screen can show in the app language. */
+async function errorFrom(response: Response, path: string): Promise<AppError> {
+  let detail: unknown = null;
   try {
     const body: unknown = await response.json();
-    if (body && typeof body === 'object' && 'detail' in body && typeof body.detail === 'string') {
-      detail = body.detail;
-    }
+    if (body && typeof body === 'object' && 'detail' in body) detail = body.detail;
   } catch {
-    // Not JSON; fall back to the status code.
+    // Not JSON.
   }
-  return new Error(detail || `Request to ${path} failed (${response.status})`);
+  console.warn(`${path} failed (${response.status}):`, detail);
+  if (response.status === 429) return new AppError('quota');
+  // Our own 422 ("no speech in the recording") has a text detail; request validation errors are lists.
+  if (response.status === 422 && typeof detail === 'string') return new AppError('noSpeech');
+  if (response.status >= 500) return new AppError('busy');
+  return new AppError('generic');
 }
 
 async function post<TResponse>(path: string, body: unknown): Promise<TResponse> {
@@ -50,6 +60,10 @@ export function checkSpeakIntent(request: SpeakIntentRequest): Promise<SpeakInte
 
 export function rewriteSpeech(request: SpeakRewriteRequest): Promise<SpeakRewriteResponse> {
   return isMockMode ? mock.rewriteSpeech(request) : post('/speak/rewrite', request);
+}
+
+export function transcribeListening(request: ListenTranscribeRequest): Promise<ListenTranscribeResponse> {
+  return isMockMode ? mock.transcribeListening(request) : post('/listen/transcribe', request);
 }
 
 export function explainListening(request: ListenExplainRequest): Promise<ListenExplainResponse> {
@@ -99,9 +113,10 @@ export async function composeWritingStream(
       } else if (event.type === 'done') {
         return event.result;
       } else {
-        throw new Error(event.detail);
+        console.warn(`${path} failed:`, event.detail);
+        throw new AppError('generic');
       }
     }
   }
-  throw new Error('The connection closed before the message was finished. Try again.');
+  throw new AppError('connection');
 }

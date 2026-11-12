@@ -1,3 +1,5 @@
+import { useI18n } from '../i18n/useI18n';
+
 interface ListenCheckProps {
   text: string;
   error: string | null;
@@ -6,6 +8,7 @@ interface ListenCheckProps {
 }
 
 function ListenCheck({ text, error, onNo, onYes }: ListenCheckProps) {
+  const { t } = useI18n();
   return (
     <div className="confirmation-page">
       <header className="confirmation-header">
@@ -17,7 +20,7 @@ function ListenCheck({ text, error, onNo, onYes }: ListenCheckProps) {
 
       <main className="confirmation-content">
         <section>
-          <p className="confirmation-label">이게 맞나요? · Is this what they said?</p>
+          <p className="confirmation-label">이게 맞나요? · {t.listen.isThisWhatTheySaid}</p>
           <div className="confirmation-sentence-card">
             <h1>&quot;{text}&quot;</h1>
           </div>
@@ -39,7 +42,7 @@ function ListenCheck({ text, error, onNo, onYes }: ListenCheckProps) {
         </div>
       </main>
 
-      <footer className="confirmation-footer">Confirm to see the meaning</footer>
+      <footer className="confirmation-footer">{t.listen.checkFooter}</footer>
     </div>
   );
 }

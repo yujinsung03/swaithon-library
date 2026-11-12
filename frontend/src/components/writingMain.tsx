@@ -2,10 +2,11 @@ import { useState, type FormEvent } from 'react';
 import { composeWritingStream } from '../api/client';
 import type { WritingComposeResponse, WritingSituation } from '../api/types';
 import { extractPartialString } from '../utils/partialJson';
+import { errorKeyOf, useI18n } from '../i18n/useI18n';
+import type { ErrorKey } from '../i18n/strings';
 
 interface SituationOption {
   value: WritingSituation;
-  label: string;
   korean: string;
   defaultRecipient: string;
   example: string;
@@ -14,35 +15,30 @@ interface SituationOption {
 const situations: SituationOption[] = [
   {
     value: 'professor_email',
-    label: 'Email to professor',
     korean: '교수님께 이메일',
     defaultRecipient: '교수님',
     example: 'I am sick, I want to ask for more time for the homework',
   },
   {
     value: 'coworker_message',
-    label: 'Message to coworker',
     korean: '동료에게 메시지',
     defaultRecipient: '회사 동료',
     example: '내일 회의 10시 → 11시 바꿔도 돼요? I have hospital',
   },
   {
     value: 'restaurant_inquiry',
-    label: 'Ask a restaurant',
     korean: '식당 문의',
     defaultRecipient: '식당',
     example: 'Reservation Saturday 7pm, 4 people, is there parking?',
   },
   {
     value: 'decline_reschedule',
-    label: 'Decline or reschedule',
     korean: '약속 거절·변경',
     defaultRecipient: '친구',
     example: 'Sorry I cannot come Friday dinner, maybe next week?',
   },
   {
     value: 'other',
-    label: 'Something else',
     korean: '기타',
     defaultRecipient: '',
     example: 'Tell my landlord the bathroom light is broken',
@@ -52,12 +48,13 @@ const situations: SituationOption[] = [
 type Page = 'input' | 'loading' | 'result';
 
 function WritingMain() {
+  const { t, language } = useI18n();
   const [page, setPage] = useState<Page>('input');
   const [situation, setSituation] = useState<SituationOption>(situations[0]);
   const [recipient, setRecipient] = useState(situations[0].defaultRecipient);
   const [intent, setIntent] = useState('');
   const [result, setResult] = useState<WritingComposeResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ErrorKey | null>(null);
   const [copied, setCopied] = useState<'message' | 'subject' | null>(null);
   // What the AI has written so far, shown while it is still writing.
   const [draft, setDraft] = useState({ subject: '', message: '' });
@@ -79,7 +76,7 @@ function WritingMain() {
     setPage('loading');
     try {
       const final = await composeWritingStream(
-        { situation: situation.value, recipient: recipient.trim(), intent: intent.trim() },
+        { situation: situation.value, recipient: recipient.trim(), intent: intent.trim(), language },
         (jsonSoFar) =>
           setDraft({
             subject: extractPartialString(jsonSoFar, 'subject') ?? '',
@@ -89,7 +86,7 @@ function WritingMain() {
       setResult(final);
       setPage('result');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setError(errorKeyOf(err));
       setPage('input');
     }
   };
@@ -99,7 +96,7 @@ function WritingMain() {
       await navigator.clipboard.writeText(text);
       setCopied(what);
     } catch {
-      setError('Could not copy. Select the text and copy it manually.');
+      setError('copyFailed');
     }
   };
 
@@ -108,25 +105,25 @@ function WritingMain() {
       <div className="writing-page">
         <header className="writing-header">
           <div>
-            <div className="writing-brand"><span className="writing-status-dot is-live" />{situation.label}</div>
-            <p>Writing your message...</p>
+            <div className="writing-brand"><span className="writing-status-dot is-live" />{t.writing.situations[situation.value]}</div>
+            <p>{t.writing.writingTitle}</p>
           </div>
         </header>
         <main className="writing-content" aria-live="polite">
           {draft.subject && (
             <section className="writing-block">
-              <div className="writing-block-heading"><span>Subject</span></div>
+              <div className="writing-block-heading"><span>{t.writing.subject}</span></div>
               <p className="writing-subject">{draft.subject}</p>
             </section>
           )}
           <section className="writing-block writing-message-block">
-            <div className="writing-block-heading"><span>Message</span></div>
+            <div className="writing-block-heading"><span>{t.writing.message}</span></div>
             <p className="writing-message">
               {draft.message}
               <span className="writing-caret" aria-hidden="true" />
             </p>
           </section>
-          <p className="writing-hint-muted">Translation and expression notes come next.</p>
+          <p className="writing-hint-muted">{t.writing.nextUp}</p>
         </main>
       </div>
     );
@@ -136,18 +133,18 @@ function WritingMain() {
     return (
       <div className="loading-page">
         <header className="loading-header">
-          <div className="loading-brand"><span className="loading-status-dot" /><span>Writing</span></div>
+          <div className="loading-brand"><span className="loading-status-dot" /><span>{t.writing.brand}</span></div>
         </header>
         <main className="loading-content">
-          <div className="loading-spinner" aria-label="Writing your message">
+          <div className="loading-spinner" aria-label={t.writing.writingTitle}>
             <span className="loading-microphone" aria-hidden="true">▤</span>
           </div>
           <div className="loading-message">
-            <h1>Writing your message...</h1>
-            <p>Following Korean conventions for {situation.label.toLowerCase()}</p>
+            <h1>{t.writing.writingTitle}</h1>
+            <p>{t.writing.writingSub}</p>
           </div>
         </main>
-        <footer className="loading-footer">This usually takes a few seconds</footer>
+        <footer className="loading-footer">{t.common.fewSeconds}</footer>
       </div>
     );
   }
@@ -157,12 +154,12 @@ function WritingMain() {
     return (
       <div className="writing-page">
         <header className="writing-header">
-          <button className="result-back-button" type="button" onClick={() => setPage('input')} aria-label="Edit request">
+          <button className="result-back-button" type="button" onClick={() => setPage('input')} aria-label={t.writing.editAria}>
             ←
           </button>
           <div>
-            <div className="writing-brand"><span className="writing-status-dot" />{situation.label}</div>
-            <p>{result.tone}{recipient.trim() && ` · to ${recipient.trim()}`}</p>
+            <div className="writing-brand"><span className="writing-status-dot" />{t.writing.situations[situation.value]}</div>
+            <p>{result.tone}{recipient.trim() && ` · ${t.writing.toRecipient(recipient.trim())}`}</p>
           </div>
         </header>
 
@@ -170,9 +167,9 @@ function WritingMain() {
           {result.subject && (
             <section className="writing-block">
               <div className="writing-block-heading">
-                <span>Subject</span>
+                <span>{t.writing.subject}</span>
                 <button type="button" onClick={() => void copy('subject', result.subject)}>
-                  {copied === 'subject' ? '✓ Copied' : 'Copy'}
+                  {copied === 'subject' ? t.writing.copied : t.writing.copy}
                 </button>
               </div>
               <p className="writing-subject">{result.subject}</p>
@@ -181,25 +178,25 @@ function WritingMain() {
 
           <section className="writing-block writing-message-block">
             <div className="writing-block-heading">
-              <span>Message</span>
+              <span>{t.writing.message}</span>
               <button type="button" onClick={() => void copy('message', result.message)}>
-                {copied === 'message' ? '✓ Copied' : 'Copy'}
+                {copied === 'message' ? t.writing.copied : t.writing.copy}
               </button>
             </div>
             <p className="writing-message">{result.message}</p>
             {hasPlaceholders && (
-              <p className="writing-hint">Replace the parts in [brackets] with your own details before sending.</p>
+              <p className="writing-hint">{t.writing.placeholderHint}</p>
             )}
           </section>
 
           <section className="writing-block">
-            <div className="writing-block-heading"><span>What it says</span></div>
+            <div className="writing-block-heading"><span>{t.writing.whatItSays}</span></div>
             <p className="writing-english">{result.englishMeaning}</p>
           </section>
 
           {result.notes.length > 0 && (
             <section className="speak-corrections">
-              <h2>Useful expressions</h2>
+              <h2>{t.writing.usefulExpressions}</h2>
               <ol>
                 {result.notes.map((note) => (
                   <li key={note.phrase}>
@@ -211,10 +208,10 @@ function WritingMain() {
             </section>
           )}
 
-          {error && <p className="speak-error" role="alert">{error}</p>}
+          {error && <p className="speak-error" role="alert">{t.errors[error]}</p>}
 
           <button className="writing-new-button" type="button" onClick={() => { setIntent(''); setPage('input'); }}>
-            ✎ Write another message
+            {t.writing.writeAnother}
           </button>
         </main>
       </div>
@@ -225,14 +222,14 @@ function WritingMain() {
     <div className="writing-page">
       <header className="writing-header">
         <div>
-          <div className="writing-brand"><span className="writing-status-dot" />WRITING</div>
-          <p>Tell me what you want to say. I&apos;ll write it the way a Korean would.</p>
+          <div className="writing-brand"><span className="writing-status-dot" />{t.writing.brand}</div>
+          <p>{t.writing.intro}</p>
         </div>
       </header>
 
       <form className="writing-content" onSubmit={(event) => void handleSubmit(event)}>
         <fieldset className="writing-situations">
-          <legend>Situation</legend>
+          <legend>{t.writing.situation}</legend>
           <div className="writing-situation-grid">
             {situations.map((option) => (
               <button
@@ -242,7 +239,7 @@ function WritingMain() {
                 onClick={() => chooseSituation(option)}
                 aria-pressed={situation.value === option.value}
               >
-                <strong>{option.label}</strong>
+                <strong>{t.writing.situations[option.value]}</strong>
                 <span>{option.korean}</span>
               </button>
             ))}
@@ -250,31 +247,31 @@ function WritingMain() {
         </fieldset>
 
         <label className="writing-field">
-          <span>To</span>
+          <span>{t.writing.to}</span>
           <input
             id="writing-recipient"
             value={recipient}
             onChange={(event) => setRecipient(event.target.value)}
-            placeholder="e.g. 교수님, 팀장님, 집주인"
+            placeholder={t.writing.toPlaceholder}
             autoComplete="off"
           />
         </label>
 
         <label className="writing-field">
-          <span>What do you want to say?</span>
+          <span>{t.writing.whatToSay}</span>
           <textarea
             id="writing-intent"
             value={intent}
             onChange={(event) => setIntent(event.target.value)}
-            placeholder={`Any language is OK.\ne.g. ${situation.example}`}
+            placeholder={`${t.writing.anyLanguage}\n${situation.example}`}
             rows={5}
           />
         </label>
 
-        {error && <p className="speak-error" role="alert">{error}</p>}
+        {error && <p className="speak-error" role="alert">{t.errors[error]}</p>}
 
         <button className="writing-submit" type="submit" disabled={!intent.trim()}>
-          Write it in Korean
+          {t.writing.submit}
         </button>
       </form>
     </div>
