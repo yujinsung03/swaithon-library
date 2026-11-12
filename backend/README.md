@@ -1,6 +1,6 @@
 # backend
 
-FastAPI + Google Gemini API 서버입니다.
+FastAPI 서버입니다. AI는 OpenAI 호환 게이트웨이(gpt-6.1-sol 등)를 먼저 쓰고, 없거나 실패하면 Google Gemini 무료 키로 넘어갑니다.
 
 ## 실행
 
@@ -22,8 +22,8 @@ cd backend
 | 파일 | 역할 |
 |---|---|
 | `app/main.py` | 엔드포인트 정의, CORS |
-| `app/prompts.py` | Gemini에게 주는 지시문. **답변 품질은 여기서 다듬습니다** |
-| `app/llm.py` | Gemini 호출, JSON 형식 강제, 에러 처리 |
+| `app/prompts.py` | AI에게 주는 지시문. **답변 품질은 여기서 다듬습니다** |
+| `app/llm.py` | 게이트웨이·Gemini 호출, 모델 순서대로 대체, JSON 형식 강제, 에러 처리 |
 | `app/schemas.py` | 요청·응답 형식 (`frontend/src/api/types.ts`와 동일) |
 
 ## 엔드포인트
@@ -32,7 +32,7 @@ cd backend
 
 | 엔드포인트 | 하는 일 |
 |---|---|
-| `POST /speak/intent` ✅ | 사용자가 한 말(텍스트 또는 **녹음 WAV**) → 정확한 받아쓰기 + 영어 의도 문장. 녹음이 오면 Gemini가 섞어 말한 언어를 그대로 받아씀 |
+| `POST /speak/intent` ✅ | 사용자가 한 말(텍스트 또는 **녹음 WAV**) → 정확한 받아쓰기 + 영어 의도 문장. 녹음이 오면 음성을 받는 모델(게이트웨이의 gemini-3.8-flash 등)이 섞어 말한 언어를 그대로 받아씀 |
 | `POST /speak/rewrite` ✅ | 의도 + 관계 + 친밀도 → 한국어 표현, 수정 내역, 이유 |
 | `POST /listen/explain` ✅ | 한국어 문장 → 번역, 표현별 설명, 문화 맥락 |
 | `POST /writing/compose` ✅ | 상황 + 의도 + 받는 사람 → 문장, 이유 |

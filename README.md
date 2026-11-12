@@ -27,15 +27,23 @@ swaithon-library/
 - 키는 비밀번호와 같습니다. 단톡방, 코드, git에 올리지 마세요.
 - **팀원마다 각자 발급받으세요.** 무료 한도가 키마다 따로라서, 하나를 같이 쓰면 금방 막힙니다(모델별로 하루 20번 정도).
 
+> **팀 AI 게이트웨이 키(`baze_...`)가 있다면** Gemini 키 없이도 됩니다. 게이트웨이 키는 유료 크레딧이라 단톡방에서 따로 받으세요(README·git에는 절대 올리지 않기).
+
 ### 2. 키를 백엔드에 넣기
 
-`backend/.env.example`을 복사해서 `backend/.env`를 만들고, 첫 줄에 키를 붙여넣습니다.
+`backend/.env.example`을 복사해서 `backend/.env`를 만들고, 가진 키를 붙여넣습니다. 둘 중 하나만 있어도 되고, 둘 다 있으면 게이트웨이를 먼저 쓰고 실패하면 Gemini로 넘어갑니다.
 
 ```
-GEMINI_API_KEY=여기에_복사한_키
+AI_GATEWAY_API_KEY=팀_게이트웨이_키   # 있으면 (gpt-6.1-sol, 하루 한도 없음)
+GEMINI_API_KEY=여기에_복사한_키       # 무료 (모델별 하루 20번 정도)
 ```
 
-나머지 줄은 비워 둬도 됩니다. `backend/.env`는 git에 올라가지 않습니다.
+| 쓰는 곳 | 게이트웨이 키가 있을 때 | Gemini 키만 있을 때 |
+|---|---|---|
+| Speak 교정, Listen, Writing | gpt-6.1-sol | gemini-3.8-flash → 3.5-flash → 3.5-flash-lite |
+| Speak 음성 인식 | 게이트웨이의 gemini-3.8-flash (gpt-6.1-sol은 음성을 못 받음) | gemini-3.8-flash → … |
+
+모델을 바꾸고 싶으면 `AI_GATEWAY_MODELS=`에 쉼표로 적습니다(예: `claude-sonnet-5-5,gpt-6.1-sol`). 나머지 줄은 비워 둬도 됩니다. `backend/.env`는 git에 올라가지 않습니다.
 
 ### 3. 프론트엔드 환경변수
 
@@ -87,8 +95,9 @@ Chrome에서 http://localhost:5173 을 열고, 마이크 권한을 물으면 **�
 |---|---|
 | Speak/Listen에서 `Failed to fetch` | 백엔드(터미널 1)가 켜져 있는지 |
 | 백엔드 터미널에 `Waiting for connections to close`가 뜨고 멈춤 | 실행 명령에 `--timeout-graceful-shutdown 2`가 있는지. 없으면 Ctrl+C로 끄고 위 명령으로 다시 실행 |
-| `GEMINI_API_KEY is not set` | `backend/.env`에 키를 넣었는지. 넣은 뒤 백엔드를 다시 켜기 |
-| `The free AI quota is used up` | 오늘 무료 한도를 다 씀. 내일 다시 하거나 다른 키 사용 |
+| `No AI key is set` | `backend/.env`에 키를 넣었는지. 넣은 뒤 백엔드를 다시 켜기 |
+| `The AI quota is used up` | 오늘 무료 한도를 다 씀(또는 게이트웨이 크레딧 소진). 내일 다시 하거나 다른 키 사용 |
+| `The AI API key was rejected` | 키를 잘못 복사했는지(앞뒤 공백, 따옴표) |
 | 마이크 버튼이 반응 없음 | Chrome인지, 주소창에서 마이크를 허용했는지 |
 | LEARN에 `Saved on this device only` | `frontend/.env.local`의 Supabase 값과 `VITE_` 이름 확인 후 `npm run dev` 다시 실행 |
 
@@ -148,7 +157,7 @@ Copy-Item frontend\.env.example frontend\.env.local
 
 그다음 VS Code 왼쪽 파일 목록에서 두 파일을 열어 값을 채우고 저장합니다(`Ctrl+S`).
 
-- `backend\.env`: 첫 줄 `GEMINI_API_KEY=` 뒤에 내 Gemini 키 ([1. Gemini API 키 받기](#1-gemini-api-키-받기-무료) 참고)
+- `backend\.env`: `GEMINI_API_KEY=` 뒤에 내 Gemini 키, 팀 게이트웨이 키가 있으면 `AI_GATEWAY_API_KEY=` 뒤에도 ([2. 키를 백엔드에 넣기](#2-키를-백엔드에-넣기) 참고)
 - `frontend\.env.local`: Supabase 두 값 ([3. 프론트엔드 환경변수](#3-프론트엔드-환경변수) 참고). `VITE_API_BASE_URL=http://localhost:8000`은 이미 채워져 있습니다.
 
 파일 이름이 정확한지 확인하려면:
@@ -208,7 +217,7 @@ npm run dev
 | `npm : 이 시스템에서 스크립트를 실행할 수 없으므로 ... npm.ps1 파일을 로드할 수 없습니다` (영어: `running scripts is disabled on this system`) | PowerShell 보안 설정 때문입니다. PowerShell에 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`를 입력하고 `Y`를 누른 뒤 터미널을 다시 여세요. 바꾸기 싫다면 `npm` 대신 `npm.cmd`로 입력해도 됩니다 (예: `npm.cmd run dev`) |
 | `'py'은(는) 내부 또는 외부 명령...이 아닙니다` / `python`을 치면 Microsoft Store가 열림 | Python이 PATH에 없습니다. [0단계](#0단계-프로그램-설치-처음-한-번)의 Python 안내를 다시 보세요 |
 | `..\.venv\Scripts\uvicorn` 을(를) 찾을 수 없음 | 3단계 설치를 안 했거나, `backend` 폴더 안이 아닌 곳에서 실행했습니다. `cd backend` 후 다시 실행하세요 |
-| `GEMINI_API_KEY is not set` 인데 키를 넣었음 | 파일 이름이 `.env.txt`가 되었을 가능성이 큽니다. 2단계의 `Get-ChildItem`으로 확인하고, 고친 뒤 백엔드를 껐다 켜세요 |
+| `No AI key is set` 인데 키를 넣었음 | 파일 이름이 `.env.txt`가 되었을 가능성이 큽니다. 2단계의 `Get-ChildItem`으로 확인하고, 고친 뒤 백엔드를 껐다 켜세요 |
 | LEARN에 `Saved on this device only` | `frontend\.env.local`의 이름과 `VITE_` 접두사를 확인하고, `npm run dev`를 껐다 다시 켜세요 (환경변수는 켤 때만 읽습니다) |
 | 마이크 버튼을 눌러도 아무 소리도 인식 안 됨 | ① Chrome 주소창 왼쪽 자물쇠 아이콘 → 마이크 **허용** ② Windows 설정 → **개인 정보 및 보안** → **마이크** → "마이크 액세스"와 "데스크톱 앱이 마이크에 액세스하도록 허용"을 켜기 ③ 설정 → 시스템 → 소리에서 입력 장치가 맞는지 확인 |
 | `[Errno 10048] ... only one usage of each socket address` / 8000번 포트 사용 중 | 백엔드가 이미 다른 터미널에서 켜져 있습니다. 그 터미널에서 `Ctrl+C`로 끄거나, PowerShell에서 `Get-NetTCPConnection -LocalPort 8000` 으로 프로세스 번호(OwningProcess)를 찾아 `Stop-Process -Id 번호`로 끄세요 |

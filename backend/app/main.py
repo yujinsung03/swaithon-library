@@ -68,7 +68,12 @@ async def handle_llm_error(_: Request, err: LLMError) -> JSONResponse:
 
 @app.get("/health")
 async def health() -> dict[str, object]:
-    return {"status": "ok", "models": model_names(), "hasApiKey": bool(os.getenv("GEMINI_API_KEY"))}
+    return {
+        "status": "ok",
+        "models": model_names(),
+        "hasGatewayKey": bool(os.getenv("AI_GATEWAY_API_KEY")),
+        "hasGeminiKey": bool(os.getenv("GEMINI_API_KEY")),
+    }
 
 
 @app.post("/speak/intent", response_model=SpeakIntentResponse)
